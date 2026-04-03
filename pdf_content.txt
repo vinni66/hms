@@ -1,0 +1,248 @@
+Project Report on
+“Intelligent Healthcare System for Early Disease Prediction
+Using AI”
+Submitted for the partial fulfilment of the requirement for the completion of the Degree of
+Bachelor of Computer Applications (BCA)
+Project Guide
+Teja H (MCA)
+Assistant Professor
+(Academic Year 2025-26)
+Submitted By
+Table 1: Project Team Members
+1.
+Sushma M V
+U23C01CA061
+2.
+Vinaya S B
+U23C01CA069
+3.
+Vinayak M B
+U23C01CA070
+________________
+________________
+________________
+HOD
+Project Guide
+Dean
+Mrs. Usha N
+Teja H (MCA)
+Dr. Shwetha S Marigoudar
+MCA, KSET
+Assistant Professor
+B.E, M.Tech (Ph.D)
+SCHOOL OF COMPUTER APPLICATIONS
+FACULTY OF COMPUTING & IT
+GM UNIVERSITY
+Davangere- 577006
+Intelligent Healthcare System for Early Disease Prediction Using AI
+GM UNIVERSITY DAVANGERE
+Page 2
+Index
+Sl. No.
+Particulars
+Page No.
+1
+Introduction
+3
+2
+Problem Statement
+3
+3
+Objective and scope of the project
+4
+4
+Literature Survey/Related Work
+4
+5
+Proposed System
+5
+6
+System Architecture
+5
+7
+Hardware & Software to be used
+6
+8
+Conclusion
+7
+9
+References/Bibliography
+7
+Intelligent Healthcare System for Early Disease Prediction Using AI
+GM UNIVERSITY DAVANGERE
+Page 3
+1. Introduction
+Intelligent Healthcare System for Early Disease Prediction Using AI: Personalized Medical
+Support.
+Access to timely medical advice is often hindered by long appointment wait times and the
+complexity of understanding medical reports. 'Intelligent Healthcare System for Early Disease
+Prediction Using AI' leverages advanced Artificial Intelligence and Cross-Platform technologies to
+democratize healthcare access. The project's core mission is to provide an intelligent, 24/7
+personal health companion.
+Built with Flutter for a seamless experience on iOS, Android, and Web, the application integrates
+Large Language Models (LLMs) to function as a 'Digital Doctor'. It analyzes symptoms, explains
+medical reports through OCR/Vision, and assists in appointment scheduling, aiming to reduce
+patient anxiety and improve health literacy.
+2. Problem Statement
+The traditional healthcare system faces several challenges that impact patient outcomes and
+satisfaction.
+Current Limitations:
+• Accessibility Barriers: Getting a quick answer to a minor health concern often requires
+scheduling an appointment, leading to unnecessary delays and costs.
+• Information Overload: Patients searching symptoms online often encounter the
+'Cyberchondria' effect, where generalized search results cause unnecessary panic.
+• Medical Jargon: Lab reports and prescriptions are full of technical terms that patients cannot
+interpret without a doctor's help, leaving them in the dark about their own health status.
+Intelligent Healthcare System for Early Disease Prediction Using AI
+GM UNIVERSITY DAVANGERE
+Page 4
+3. Objective and scope of the project
+Objectives:
+• To develop a high-performance cross-platform application using the Flutter framework.
+• To integrate a 'Doctor AI' chatbot capable of natural language symptom assessment and
+risk categorization (Normal/Caution/Urgent).
+• To implement an intelligent OCR scanner to digitize and explain physical medical reports.
+• To create a comprehensive Health Dashboard for tracking vital statistics and upcoming
+appointments.
+• To ensure a premium, accessible UI/UX that adheres to modern design standards (Dark
+Mode, Animations).
+Scope:
+This system is designed for patients and general users seeking preliminary medical guidance and
+health management tools.
+In Scope: AI-driven symptom chat, report text extraction, appointment visualization, and secure
+local data storage.
+Out of Scope: The AI provides guidance, not official medical diagnoses. Emergency services and
+direct telemedicine video conferencing are future enhancements.
+Intelligent Healthcare System for Early Disease Prediction Using AI
+GM UNIVERSITY DAVANGERE
+Page 5
+4. Literature Survey/Related Work
+Digital Healthcare has evolved from simple record-keeping to intelligent predictive systems.
+[1] Telemedicine Platforms (e.g., Practo, Teladoc):
+These platforms successfully connect patients with doctors via video. However, they lack
+immediate, AI-driven initial triaging, meaning users must wait for the actual consultation to get
+even basic answers.
+[2] General Health Info Sites (e.g., WebMD):
+While rich in information, these static repositories lack context. They cannot personalize advice
+based on a user's specific history or current symptoms, often leading to misinterpretation.
+[3] LLMs in Medicine (Med-PaLM):
+Recent advancements by Google and OpenAI show that LLMs can pass medical licensing exams.
+This project aims to harness that intelligence in a user-friendly mobile interface, bridging the gap
+between raw AI power and everyday patient needs.
+5. Proposed System
+The 'Intelligent Healthcare System for Early Disease Prediction Using AI' acts as a unified
+platform for tracking, understanding, and managing personal health.
+5.1 Key Features:
+• Doctor AI Chat: A conversational interface that asks follow-up questions to understand
+symptoms better, providing risk badges to indicate urgency.
+• Smart Scanner: Users can take photos of prescriptions or reports. The system extracts
+text and summarizes the key findings in simple English.
+• Dynamic Dashboard: A personalized home screen showing upcoming appointments,
+health summaries, and quick actions.
+5.2 Methodology:
+1. Frontend Development: Built with Flutter to ensure a single codebase runs natively on
+iOS, Android, and Web. Emphasis on smooth 60fps animations for a premium feel.
+2. AI Integration: The backend leverages OpenAI/Gemini APIs for natural language
+processing, formatted with specific medical system prompts to ensure safety and empathy.
+3. Data Privacy: Health data is stored securely. The system is designed with privacy-first
+principles.
+Intelligent Healthcare System for Early Disease Prediction Using AI
+GM UNIVERSITY DAVANGERE
+Page 6
+5.3 System Comparison:
+Table 2: Comparison with Traditional System
+Feature
+Traditional Healthcare
+Proposed AI System
+Accessibility
+Limited to clinic hours
+24/7 Availability
+Diagnosis Speed
+Requires appointment wait time
+Instant preliminary analysis
+Report Understanding
+Complex medical jargon
+Simplified AI explanation
+Cost
+High consultation fees
+Free/Low-cost initial guidance
+Data Management
+Physical papers (hard to track)
+Digital, centralized dashboard
+Intelligent Healthcare System for Early Disease Prediction Using AI
+GM UNIVERSITY DAVANGERE
+Page 7
+6. System Architecture
+The architecture follows a modern client-server pattern with AI offloading.
+1. Presentation Layer (Flutter): Handles the UI/UX, animations, and user input. It adapts
+layout for Mobile and Web.
+2. Logic Layer (Dart/State Management): Manages app state, user authentication session,
+and local caching of data.
+3. Service Layer (API): Connects the app to external services. Handles HTTP requests to
+the AI engine and Database.
+4. Intelligence Layer (LLM): Processes natural language queries, performs medical entity
+recognition, and generates human-like responses.
+5. Data Layer: Secure storage for user profiles, appointment history, and saved reports.
+Figure 1: System Data Flow Diagram
+Figure 1: System Data Flow Diagram
+Intelligent Healthcare System for Early Disease Prediction Using AI
+GM UNIVERSITY DAVANGERE
+Page 8
+7. Hardware & Software to be used
+The project is accessible on standard consumer devices.
+7.1 Hardware Requirements
+Table 3: Hardware Requirements
+Component
+Minimum Requirement
+Recommended Specification
+Dev Device
+Intel i5, 8GB RAM
+M1/M2 Mac or Intel i7, 16GB RAM
+Target Mobile
+Android 8.0 / iOS 14
+Android 12+ / iOS 17+
+Connectivity
+3G/4G Internet
+High-speed Wi-Fi (for Video/AI)
+Camera
+5 MP Rear Camera
+12 MP+ (for clear OCR scanning)
+Intelligent Healthcare System for Early Disease Prediction Using AI
+GM UNIVERSITY DAVANGERE
+Page 9
+7.2 Software Requirements
+Table 4: Software Requirements
+Component
+Specification and Version
+Framework
+Flutter SDK 3.19+ (Dart 3.0)
+IDE
+VS Code (Recommended) or Android Studio
+Backend
+node.js / Python (Optional for API proxy)
+Database
+Firebase Firestore / Supabase
+AI Service
+OpenAI GPT-4 / Google Gemini API
+Design Tool
+Figma (For UI/UX Prototyping)
+8. Conclusion
+'Intelligent Healthcare System for Early Disease Prediction Using AI' demonstrates the powerful
+synergy between modern mobile development and Artificial Intelligence. By automating initial
+guidance and summarizing complex medical data, it empowers users to take control of their
+health. The project proves that premium, accessible healthcare technology can be built efficiently
+using cross-platform tools.
+Future Scope:
+• Wearable Integration: Syncing with Apple Health/Google Fit for real-time heart rate and
+sleep tracking.
+• Multi-Language Support: Using AI to translate medical advice into regional languages
+for broader accessibility.
+• Video Tele-consultation: Building a WebRTC pipeline to allow direct video calls with
+doctors within the app.
+9. References/Bibliography
+1. Flutter Documentation. (2024). https://flutter.dev/docs
+2. Singhal, K., Azizi, S., Tu, T. et al. (2023). Large language models encode clinical knowledge.
+Nature.
+3. Material Design 3 Guidelines. (2024). https://m3.material.io
+4. OpenAI API Documentation. https://platform.openai.com/docs
+5. World Health Organization (WHO). 'Digital Health Strategy 2020-2025'.
