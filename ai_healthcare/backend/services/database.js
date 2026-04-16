@@ -1,147 +1,177 @@
-const initSqlJs = require('sql.js');
-const fs = require('fs');
-const path = require('path');
+const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 
-const DB_PATH = path.join(__dirname, '..', 'healthcare.db');
+const DB_URL = process.env.SUPABASE_DB_URL;
 
 class DatabaseService {
   constructor() {
-    this.db = null;
+    if (!DB_URL || DB_URL.includes('[YOUR-PASSWORD]')) {
+      console.warn('⚠️ SUPABASE_DB_URL not properly configured. Database service will be limited.');
+    }
+    
+    this.pool = new Pool({
+      connectionString: DB_URL,
+      ssl: {
+        rejectUnauthorized: false // Required for Supabase/Heroku/DigitalOcean
+      }
+    });
+
     this.ready = this._init();
   }
 
   async _init() {
-    const SQL = await initSqlJs();
-    if (fs.existsSync(DB_PATH)) {
-      const buffer = fs.readFileSync(DB_PATH);
-      this.db = new SQL.Database(buffer);
-    } else {
-      this.db = new SQL.Database();
-    }
-
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        name TEXT NOT NULL DEFAULT 'User',
-        role TEXT NOT NULL DEFAULT 'patient',
-        age INTEGER DEFAULT 0,
-        gender TEXT DEFAULT '',
-        phone TEXT DEFAULT '',
-        blood_group TEXT DEFAULT '',
-        allergies TEXT DEFAULT '',
-        emergency_contact TEXT DEFAULT '',
-        specialty TEXT DEFAULT '',
-        qualification TEXT DEFAULT '',
-        experience_years INTEGER DEFAULT 0,
-        avatar_color TEXT DEFAULT '#667EEA',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS chat_messages (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        conversation_id TEXT NOT NULL,
-        text TEXT NOT NULL,
-        is_user INTEGER NOT NULL DEFAULT 1,
-        risk_level TEXT DEFAULT 'normal',
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS appointments (
-        id TEXT PRIMARY KEY,
-        patient_id TEXT NOT NULL,
-        doctor_id TEXT NOT NULL,
-        doctor_name TEXT NOT NULL,
-        patient_name TEXT NOT NULL,
-        specialty TEXT NOT NULL,
-        date_time DATETIME NOT NULL,
-        location TEXT DEFAULT '',
-        notes TEXT DEFAULT '',
-        status TEXT DEFAULT 'pending',
-        consultation_notes TEXT DEFAULT '',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS prescriptions (
-        id TEXT PRIMARY KEY,
-        appointment_id TEXT,
-        patient_id TEXT NOT NULL,
-        doctor_id TEXT NOT NULL,
-        doctor_name TEXT NOT NULL,
-        patient_name TEXT NOT NULL,
-        diagnosis TEXT DEFAULT '',
-        medications TEXT DEFAULT '[]',
-        instructions TEXT DEFAULT '',
-        date_issued DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS health_metrics (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        type TEXT NOT NULL,
-        value REAL NOT NULL,
-        unit TEXT DEFAULT '',
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS scan_reports (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        image_path TEXT DEFAULT '',
-        extracted_text TEXT DEFAULT '',
-        ai_summary TEXT DEFAULT '',
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS medical_records (
-        id TEXT PRIMARY KEY,
-        patient_id TEXT NOT NULL,
-        title TEXT NOT NULL,
-        description TEXT DEFAULT '',
-        record_type TEXT DEFAULT 'general',
-        file_path TEXT DEFAULT '',
-        created_by TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS pharmacies (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        address TEXT NOT NULL,
-        distance_km REAL NOT NULL,
-        phone TEXT DEFAULT ''
-      );
-
-      CREATE TABLE IF NOT EXISTS pharmacy_inventory (
-        id TEXT PRIMARY KEY,
-        pharmacy_id TEXT NOT NULL,
-        medicine_name TEXT NOT NULL,
-        stock_status TEXT DEFAULT 'In Stock',
-        price REAL DEFAULT 0.0
-      );
-    `);
-
-    // Seed default users if empty
-    const count = this._get('SELECT COUNT(*) as c FROM users');
-    if (!count || count.c === 0) {
-      await this._seedData();
-    }
-
-    // Seed pharmacies if empty
     try {
-      const phCount = this._get('SELECT COUNT(*) as c FROM pharmacies');
-      if (!phCount || phCount.c === 0) {
-        await this._seedPharmacies();
-      }
-    } catch(e) {}
+      // 1. Users table
+      await this._run(`
+        CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY,
+          email TEXT UNIQUE NOT NULL,
+          password TEXT NOT NULL,
+          name TEXT NOT NULL DEFAULT 'User',
+          role TEXT NOT NULL DEFAULT 'patient',
+          age INTEGER DEFAULT 0,
+          gender TEXT DEFAULT '',
+          phone TEXT DEFAULT '',
+          blood_group TEXT DEFAULT '',
+          allergies TEXT DEFAULT '',
+          emergency_contact TEXT DEFAULT '',
+          specialty TEXT DEFAULT '',
+          qualification TEXT DEFAULT '',
+          experience_years INTEGER DEFAULT 0,
+          avatar_color TEXT DEFAULT '#667EEA',
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
 
-    this._save();
-    console.log('✅ Database initialized with tables & seed data');
+      // 2. Chat messages table
+      await this._run(`
+        CREATE TABLE IF NOT EXISTS chat_messages (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          conversation_id TEXT NOT NULL,
+          text TEXT NOT NULL,
+          is_user BOOLEAN NOT NULL DEFAULT TRUE,
+          risk_level TEXT DEFAULT 'normal',
+          timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // 3. Appointments table
+      await this._run(`
+        CREATE TABLE IF NOT EXISTS appointments (
+          id TEXT PRIMARY KEY,
+          patient_id TEXT NOT NULL,
+          doctor_id TEXT NOT NULL,
+          doctor_name TEXT NOT NULL,
+          patient_name TEXT NOT NULL,
+          specialty TEXT NOT NULL,
+          date_time TIMESTAMP WITH TIME ZONE NOT NULL,
+          location TEXT DEFAULT '',
+          notes TEXT DEFAULT '',
+          status TEXT DEFAULT 'pending',
+          consultation_notes TEXT DEFAULT '',
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // 4. Prescriptions table
+      await this._run(`
+        CREATE TABLE IF NOT EXISTS prescriptions (
+          id TEXT PRIMARY KEY,
+          appointment_id TEXT,
+          patient_id TEXT NOT NULL,
+          doctor_id TEXT NOT NULL,
+          doctor_name TEXT NOT NULL,
+          patient_name TEXT NOT NULL,
+          diagnosis TEXT DEFAULT '',
+          medications JSONB DEFAULT '[]',
+          instructions TEXT DEFAULT '',
+          date_issued TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // 5. Health metrics table
+      await this._run(`
+        CREATE TABLE IF NOT EXISTS health_metrics (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          type TEXT NOT NULL,
+          value REAL NOT NULL,
+          unit TEXT DEFAULT '',
+          timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // 6. Scan reports table
+      await this._run(`
+        CREATE TABLE IF NOT EXISTS scan_reports (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          image_path TEXT DEFAULT '',
+          extracted_text TEXT DEFAULT '',
+          ai_summary TEXT DEFAULT '',
+          timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // 7. Medical records table
+      await this._run(`
+        CREATE TABLE IF NOT EXISTS medical_records (
+          id TEXT PRIMARY KEY,
+          patient_id TEXT NOT NULL,
+          title TEXT NOT NULL,
+          description TEXT DEFAULT '',
+          record_type TEXT DEFAULT 'general',
+          file_path TEXT DEFAULT '',
+          created_by TEXT NOT NULL,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // 8. Pharmacies table
+      await this._run(`
+        CREATE TABLE IF NOT EXISTS pharmacies (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          address TEXT NOT NULL,
+          distance_km REAL NOT NULL,
+          phone TEXT DEFAULT ''
+        );
+      `);
+
+      // 9. Pharmacy Inventory
+      await this._run(`
+        CREATE TABLE IF NOT EXISTS pharmacy_inventory (
+          id TEXT PRIMARY KEY,
+          pharmacy_id TEXT NOT NULL,
+          medicine_name TEXT NOT NULL,
+          stock_status TEXT DEFAULT 'In Stock',
+          price REAL DEFAULT 0.0
+        );
+      `);
+
+      // Seed default users if empty
+      const countData = await this._get('SELECT COUNT(*) as c FROM users');
+      const count = parseInt(countData?.c || '0');
+      if (count === 0) {
+        await this._seedData();
+      }
+
+      // Seed pharmacies if empty
+      try {
+        const phCountData = await this._get('SELECT COUNT(*) as c FROM pharmacies');
+        const phCount = parseInt(phCountData?.c || '0');
+        if (phCount === 0) {
+          await this._seedPharmacies();
+        }
+      } catch(e) {}
+
+      console.log('✅ Supabase Database initialized with tables & seed data');
+    } catch (err) {
+      console.error('❌ Database Initialization Error:', err);
+    }
   }
 
   async _seedData() {
@@ -151,11 +181,11 @@ class DatabaseService {
     const receptionistPass = await bcrypt.hash('receptionist123', 10);
 
     // Admin
-    this.db.run('INSERT INTO users (id, email, password, name, role, avatar_color) VALUES (?, ?, ?, ?, ?, ?)',
+    await this._run('INSERT INTO users (id, email, password, name, role, avatar_color) VALUES ($1, $2, $3, $4, $5, $6)',
       [uuidv4(), 'admin@healthcare.com', adminPass, 'System Admin', 'admin', '#FF6B6B']);
 
     // Receptionist
-    this.db.run('INSERT INTO users (id, email, password, name, role, avatar_color) VALUES (?, ?, ?, ?, ?, ?)',
+    await this._run('INSERT INTO users (id, email, password, name, role, avatar_color) VALUES ($1, $2, $3, $4, $5, $6)',
       [uuidv4(), 'receptionist@healthcare.com', receptionistPass, 'Front Desk', 'receptionist', '#F5A623']);
 
     // Doctors
@@ -168,220 +198,210 @@ class DatabaseService {
     ];
 
     for (const d of doctors) {
-      this.db.run(
-        'INSERT INTO users (id, email, password, name, role, specialty, qualification, experience_years, avatar_color) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      await this._run(
+        'INSERT INTO users (id, email, password, name, role, specialty, qualification, experience_years, avatar_color) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
         [uuidv4(), d.email, doctorPass, d.name, 'doctor', d.specialty, d.qualification, d.exp, d.color]
       );
     }
 
     // Demo patient
-    this.db.run('INSERT INTO users (id, email, password, name, role, age, blood_group, avatar_color) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    await this._run('INSERT INTO users (id, email, password, name, role, age, blood_group, avatar_color) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
       [uuidv4(), 'patient@test.com', patientPass, 'Demo Patient', 'patient', 25, 'O+', '#667EEA']);
-
-    console.log('📦 Seed data inserted: 1 admin, 1 receptionist, 5 doctors, 1 demo patient');
 
     await this._seedPharmacies();
   }
 
   async _seedPharmacies() {
-    // Seed Pharmacies
     const ph1 = uuidv4();
     const ph2 = uuidv4();
     const ph3 = uuidv4();
     
-    this.db.run('INSERT INTO pharmacies (id, name, address, distance_km, phone) VALUES (?,?,?,?,?)', 
+    await this._run('INSERT INTO pharmacies (id, name, address, distance_km, phone) VALUES ($1,$2,$3,$4,$5)', 
       [ph1, 'Apollo Pharmacy', '12 Health Avenue, Downtown', 1.2, '+1-555-0101']);
-    this.db.run('INSERT INTO pharmacies (id, name, address, distance_km, phone) VALUES (?,?,?,?,?)', 
+    await this._run('INSERT INTO pharmacies (id, name, address, distance_km, phone) VALUES ($1,$2,$3,$4,$5)', 
       [ph2, 'City Care Meds', '45 Main Street, Westside', 2.5, '+1-555-0202']);
-    this.db.run('INSERT INTO pharmacies (id, name, address, distance_km, phone) VALUES (?,?,?,?,?)', 
+    await this._run('INSERT INTO pharmacies (id, name, address, distance_km, phone) VALUES ($1,$2,$3,$4,$5)', 
       [ph3, '24/7 Wellness Pharmacy', '88 River Road, Eastside', 4.1, '+1-555-0303']);
       
-    // Seed Inventory for common meds
     const meds = ['Paracetamol', 'Amoxicillin', 'Lisinopril', 'Metformin', 'Atorvastatin', 'Aspirin', 'Ibuprofen'];
     for (const m of meds) {
-      this.db.run('INSERT INTO pharmacy_inventory (id, pharmacy_id, medicine_name, stock_status, price) VALUES (?,?,?,?,?)',
-        [uuidv4(), ph1, m, Math.random() > 0.2 ? 'In Stock' : 'Low Stock', (Math.random() * 20 + 5).toFixed(2)]);
-      this.db.run('INSERT INTO pharmacy_inventory (id, pharmacy_id, medicine_name, stock_status, price) VALUES (?,?,?,?,?)',
-        [uuidv4(), ph2, m, Math.random() > 0.4 ? 'In Stock' : 'Out of Stock', (Math.random() * 20 + 5).toFixed(2)]);
-      this.db.run('INSERT INTO pharmacy_inventory (id, pharmacy_id, medicine_name, stock_status, price) VALUES (?,?,?,?,?)',
-        [uuidv4(), ph3, m, 'In Stock', (Math.random() * 20 + 5).toFixed(2)]);
+      await this._run('INSERT INTO pharmacy_inventory (id, pharmacy_id, medicine_name, stock_status, price) VALUES ($1,$2,$3,$4,$5)',
+        [uuidv4(), ph1, m, Math.random() > 0.2 ? 'In Stock' : 'Low Stock', parseFloat((Math.random() * 20 + 5).toFixed(2))]);
+      await this._run('INSERT INTO pharmacy_inventory (id, pharmacy_id, medicine_name, stock_status, price) VALUES ($1,$2,$3,$4,$5)',
+        [uuidv4(), ph2, m, Math.random() > 0.4 ? 'In Stock' : 'Out of Stock', parseFloat((Math.random() * 20 + 5).toFixed(2))]);
+      await this._run('INSERT INTO pharmacy_inventory (id, pharmacy_id, medicine_name, stock_status, price) VALUES ($1,$2,$3,$4,$5)',
+        [uuidv4(), ph3, m, 'In Stock', parseFloat((Math.random() * 20 + 5).toFixed(2))]);
     }
-    console.log('📦 Seeded dummy pharmacies and inventory data');
   }
 
-  _save() {
-    const data = this.db.export();
-    fs.writeFileSync(DB_PATH, Buffer.from(data));
+  async _all(sql, params = []) {
+    const res = await this.pool.query(sql, params);
+    return res.rows;
   }
 
-  _all(sql, params = []) {
-    const stmt = this.db.prepare(sql);
-    if (params.length) stmt.bind(params);
-    const results = [];
-    while (stmt.step()) results.push(stmt.getAsObject());
-    stmt.free();
-    return results;
+  async _get(sql, params = []) {
+    const rows = await this._all(sql, params);
+    return rows.length > 0 ? rows[0] : null;
   }
 
-  _get(sql, params = []) {
-    const r = this._all(sql, params);
-    return r.length > 0 ? r[0] : null;
-  }
-
-  _run(sql, params = []) {
-    this.db.run(sql, params);
-    this._save();
+  async _run(sql, params = []) {
+    return await this.pool.query(sql, params);
   }
 
   // ── Auth ──
-  getUserByEmail(email) {
-    return this._get('SELECT * FROM users WHERE email = ?', [email]);
+  async getUserByEmail(email) {
+    return await this._get('SELECT * FROM users WHERE email = $1', [email]);
   }
 
-  createUser(data) {
+  async createUser(data) {
     const id = uuidv4();
-    this._run(
-      'INSERT INTO users (id, email, password, name, role, age, gender, phone, blood_group, avatar_color) VALUES (?,?,?,?,?,?,?,?,?,?)',
+    await this._run(
+      'INSERT INTO users (id, email, password, name, role, age, gender, phone, blood_group, avatar_color) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
       [id, data.email, data.password, data.name, data.role || 'patient', data.age || 0, data.gender || '', data.phone || '', data.blood_group || '', data.avatar_color || '#667EEA']
     );
-    return this.getUser(id);
+    return await this.getUser(id);
   }
 
-  getUser(id) {
-    const u = this._get('SELECT * FROM users WHERE id = ?', [id]);
+  async getUser(id) {
+    const u = await this._get('SELECT * FROM users WHERE id = $1', [id]);
     if (u) delete u.password;
     return u;
   }
 
-  updateUser(id, data) {
+  async updateUser(id, data) {
     const allowed = ['name', 'age', 'gender', 'phone', 'blood_group', 'allergies', 'emergency_contact', 'specialty', 'qualification', 'experience_years', 'avatar_color'];
     const fields = [], values = [];
+    let i = 1;
     for (const [k, v] of Object.entries(data)) {
-      if (allowed.includes(k)) { fields.push(`${k}=?`); values.push(v); }
+      if (allowed.includes(k)) { 
+        fields.push(`${k}=$${i}`); 
+        values.push(v);
+        i++;
+      }
     }
-    if (!fields.length) return this.getUser(id);
+    if (!fields.length) return await this.getUser(id);
     values.push(id);
-    this._run(`UPDATE users SET ${fields.join(',')}, updated_at=CURRENT_TIMESTAMP WHERE id=?`, values);
-    return this.getUser(id);
+    await this._run(`UPDATE users SET ${fields.join(',')}, updated_at=CURRENT_TIMESTAMP WHERE id=$${i}`, values);
+    return await this.getUser(id);
   }
 
-  getAllUsers() {
-    return this._all("SELECT id, email, name, role, age, gender, phone, blood_group, specialty, avatar_color, created_at FROM users ORDER BY created_at DESC");
+  async getAllUsers() {
+    return await this._all("SELECT id, email, name, role, age, gender, phone, blood_group, specialty, avatar_color, created_at FROM users ORDER BY created_at DESC");
   }
 
-  getPatients() {
-    return this._all("SELECT id, email, name, age, gender, phone, blood_group, avatar_color, created_at FROM users WHERE role='patient' ORDER BY created_at DESC");
+  async getPatients() {
+    return await this._all("SELECT id, email, name, age, gender, phone, blood_group, avatar_color, created_at FROM users WHERE role='patient' ORDER BY created_at DESC");
   }
 
-  getDoctors() {
-    return this._all("SELECT id, name, email, specialty, qualification, experience_years, avatar_color FROM users WHERE role='doctor' ORDER BY name");
+  async getDoctors() {
+    return await this._all("SELECT id, name, email, specialty, qualification, experience_years, avatar_color FROM users WHERE role='doctor' ORDER BY name");
   }
 
-  deleteUser(id) { this._run('DELETE FROM users WHERE id=?', [id]); }
+  async deleteUser(id) { await this._run('DELETE FROM users WHERE id=$1', [id]); }
 
   // ── Chat ──
-  getMessages(userId, conversationId) {
-    return this._all('SELECT * FROM chat_messages WHERE user_id=? AND conversation_id=? ORDER BY timestamp ASC', [userId, conversationId]);
+  async getMessages(userId, conversationId) {
+    return await this._all('SELECT * FROM chat_messages WHERE user_id=$1 AND conversation_id=$2 ORDER BY timestamp ASC', [userId, conversationId]);
   }
-  insertMessage(m) {
-    this._run('INSERT INTO chat_messages (id,user_id,conversation_id,text,is_user,risk_level,timestamp) VALUES (?,?,?,?,?,?,?)',
-      [m.id, m.user_id, m.conversation_id, m.text, m.is_user ? 1 : 0, m.risk_level || 'normal', m.timestamp || new Date().toISOString()]);
+  async insertMessage(m) {
+    await this._run('INSERT INTO chat_messages (id,user_id,conversation_id,text,is_user,risk_level,timestamp) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+      [m.id, m.user_id, m.conversation_id, m.text, m.is_user ? true : false, m.risk_level || 'normal', m.timestamp || new Date().toISOString()]);
   }
-  clearMessages(userId, convoId) { this._run('DELETE FROM chat_messages WHERE user_id=? AND conversation_id=?', [userId, convoId]); }
+  async clearMessages(userId, convoId) { await this._run('DELETE FROM chat_messages WHERE user_id=$1 AND conversation_id=$2', [userId, convoId]); }
 
   // ── Appointments ──
-  getAppointments(userId, role) {
-    if (role === 'doctor') return this._all('SELECT * FROM appointments WHERE doctor_id=? ORDER BY date_time DESC', [userId]);
-    if (role === 'admin' || role === 'receptionist') return this._all('SELECT * FROM appointments ORDER BY date_time DESC');
-    return this._all('SELECT * FROM appointments WHERE patient_id=? ORDER BY date_time DESC', [userId]);
+  async getAppointments(userId, role) {
+    if (role === 'doctor') return await this._all('SELECT * FROM appointments WHERE doctor_id=$1 ORDER BY date_time DESC', [userId]);
+    if (role === 'admin' || role === 'receptionist') return await this._all('SELECT * FROM appointments ORDER BY date_time DESC');
+    return await this._all('SELECT * FROM appointments WHERE patient_id=$1 ORDER BY date_time DESC', [userId]);
   }
-  getAppointment(id) { return this._get('SELECT * FROM appointments WHERE id=?', [id]); }
-  insertAppointment(a) {
+  async getAppointment(id) { return await this._get('SELECT * FROM appointments WHERE id=$1', [id]); }
+  async insertAppointment(a) {
     const id = a.id || uuidv4();
-    this._run('INSERT INTO appointments (id,patient_id,doctor_id,doctor_name,patient_name,specialty,date_time,location,notes,status) VALUES (?,?,?,?,?,?,?,?,?,?)',
+    await this._run('INSERT INTO appointments (id,patient_id,doctor_id,doctor_name,patient_name,specialty,date_time,location,notes,status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
       [id, a.patient_id, a.doctor_id, a.doctor_name, a.patient_name, a.specialty, a.date_time, a.location||'', a.notes||'', a.status||'pending']);
     return { id, ...a };
   }
-  updateAppointmentStatus(id, status) { this._run('UPDATE appointments SET status=? WHERE id=?', [status, id]); }
-  addConsultationNotes(id, notes) { this._run('UPDATE appointments SET consultation_notes=?, status=? WHERE id=?', [notes, 'completed', id]); }
-  deleteAppointment(id) { this._run('DELETE FROM appointments WHERE id=?', [id]); }
+  async updateAppointmentStatus(id, status) { await this._run('UPDATE appointments SET status=$1 WHERE id=$2', [status, id]); }
+  async addConsultationNotes(id, notes) { await this._run('UPDATE appointments SET consultation_notes=$1, status=$2 WHERE id=$3', [notes, 'completed', id]); }
+  async deleteAppointment(id) { await this._run('DELETE FROM appointments WHERE id=$1', [id]); }
 
   // ── Prescriptions ──
-  getPrescriptions(userId, role) {
-    if (role === 'doctor') return this._all('SELECT * FROM prescriptions WHERE doctor_id=? ORDER BY date_issued DESC', [userId]);
-    if (role === 'admin') return this._all('SELECT * FROM prescriptions ORDER BY date_issued DESC');
-    return this._all('SELECT * FROM prescriptions WHERE patient_id=? ORDER BY date_issued DESC', [userId]);
+  async getPrescriptions(userId, role) {
+    if (role === 'doctor') return await this._all('SELECT * FROM prescriptions WHERE doctor_id=$1 ORDER BY date_issued DESC', [userId]);
+    if (role === 'admin') return await this._all('SELECT * FROM prescriptions ORDER BY date_issued DESC');
+    return await this._all('SELECT * FROM prescriptions WHERE patient_id=$1 ORDER BY date_issued DESC', [userId]);
   }
-  insertPrescription(p) {
+  async insertPrescription(p) {
     const id = p.id || uuidv4();
-    this._run('INSERT INTO prescriptions (id,appointment_id,patient_id,doctor_id,doctor_name,patient_name,diagnosis,medications,instructions) VALUES (?,?,?,?,?,?,?,?,?)',
+    await this._run('INSERT INTO prescriptions (id,appointment_id,patient_id,doctor_id,doctor_name,patient_name,diagnosis,medications,instructions) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
       [id, p.appointment_id||'', p.patient_id, p.doctor_id, p.doctor_name, p.patient_name, p.diagnosis||'', JSON.stringify(p.medications||[]), p.instructions||'']);
     return { id, ...p };
   }
-  deletePrescription(id) { this._run('DELETE FROM prescriptions WHERE id=?', [id]); }
+  async deletePrescription(id) { await this._run('DELETE FROM prescriptions WHERE id=$1', [id]); }
 
   // ── Health Metrics ──
-  getMetrics(userId) { return this._all('SELECT * FROM health_metrics WHERE user_id=? ORDER BY timestamp DESC', [userId]); }
-  getLatestMetric(userId, type) { return this._get('SELECT * FROM health_metrics WHERE user_id=? AND type=? ORDER BY timestamp DESC LIMIT 1', [userId, type]); }
-  insertMetric(m) {
+  async getMetrics(userId) { return await this._all('SELECT * FROM health_metrics WHERE user_id=$1 ORDER BY timestamp DESC', [userId]); }
+  async getLatestMetric(userId, type) { return await this._get('SELECT * FROM health_metrics WHERE user_id=$1 AND type=$2 ORDER BY timestamp DESC LIMIT 1', [userId, type]); }
+  async insertMetric(m) {
     const id = m.id || uuidv4();
-    this._run('INSERT INTO health_metrics (id,user_id,type,value,unit,timestamp) VALUES (?,?,?,?,?,?)',
+    await this._run('INSERT INTO health_metrics (id,user_id,type,value,unit,timestamp) VALUES ($1,$2,$3,$4,$5,$6)',
       [id, m.user_id, m.type, m.value, m.unit||'', m.timestamp || new Date().toISOString()]);
     return { id, ...m };
   }
-  deleteMetric(id) { this._run('DELETE FROM health_metrics WHERE id=?', [id]); }
+  async deleteMetric(id) { await this._run('DELETE FROM health_metrics WHERE id=$1', [id]); }
 
   // ── Reports ──
-  getReports(userId) { return this._all('SELECT * FROM scan_reports WHERE user_id=? ORDER BY timestamp DESC', [userId]); }
-  insertReport(r) {
+  async getReports(userId) { return await this._all('SELECT * FROM scan_reports WHERE user_id=$1 ORDER BY timestamp DESC', [userId]); }
+  async insertReport(r) {
     const id = r.id || uuidv4();
-    this._run('INSERT INTO scan_reports (id,user_id,image_path,extracted_text,ai_summary) VALUES (?,?,?,?,?)',
+    await this._run('INSERT INTO scan_reports (id,user_id,image_path,extracted_text,ai_summary) VALUES ($1,$2,$3,$4,$5)',
       [id, r.user_id, r.image_path||'', r.extracted_text||'', r.ai_summary||'']);
     return { id, ...r };
   }
-  updateReport(id, data) {
+  async updateReport(id, data) {
     const f = [], v = [];
-    if (data.ai_summary !== undefined) { f.push('ai_summary=?'); v.push(data.ai_summary); }
-    if (data.extracted_text !== undefined) { f.push('extracted_text=?'); v.push(data.extracted_text); }
+    let i = 1;
+    if (data.ai_summary !== undefined) { f.push(`ai_summary=$${i}`); v.push(data.ai_summary); i++; }
+    if (data.extracted_text !== undefined) { f.push(`extracted_text=$${i}`); v.push(data.extracted_text); i++; }
     if (!f.length) return;
     v.push(id);
-    this._run(`UPDATE scan_reports SET ${f.join(',')} WHERE id=?`, v);
+    await this._run(`UPDATE scan_reports SET ${f.join(',')} WHERE id=$${i}`, v);
   }
-  deleteReport(id) { this._run('DELETE FROM scan_reports WHERE id=?', [id]); }
+  async deleteReport(id) { await this._run('DELETE FROM scan_reports WHERE id=$1', [id]); }
 
   // ── Medical Records ──
-  getRecords(patientId) { return this._all('SELECT * FROM medical_records WHERE patient_id=? ORDER BY created_at DESC', [patientId]); }
-  insertRecord(r) {
+  async getRecords(patientId) { return await this._all('SELECT * FROM medical_records WHERE patient_id=$1 ORDER BY created_at DESC', [patientId]); }
+  async insertRecord(r) {
     const id = r.id || uuidv4();
-    this._run('INSERT INTO medical_records (id,patient_id,title,description,record_type,created_by) VALUES (?,?,?,?,?,?)',
+    await this._run('INSERT INTO medical_records (id,patient_id,title,description,record_type,created_by) VALUES ($1,$2,$3,$4,$5,$6)',
       [id, r.patient_id, r.title, r.description||'', r.record_type||'general', r.created_by]);
     return { id, ...r };
   }
-  deleteRecord(id) { this._run('DELETE FROM medical_records WHERE id=?', [id]); }
+  async deleteRecord(id) { await this._run('DELETE FROM medical_records WHERE id=$1', [id]); }
 
   // ── Pharmacy Inventory ──
-  getPharmaciesForMedicine(medicineName) {
-    // Basic fuzzy search
+  async getPharmaciesForMedicine(medicineName) {
     const query = `
       SELECT p.*, i.stock_status, i.price 
       FROM pharmacies p
       JOIN pharmacy_inventory i ON p.id = i.pharmacy_id
-      WHERE i.medicine_name LIKE ?
+      WHERE i.medicine_name ILIKE $1
       ORDER BY p.distance_km ASC
     `;
-    return this._all(query, [`%${medicineName}%`]);
+    return await this._all(query, [`%${medicineName}%`]);
   }
 
   // ── Admin Stats ──
-  getStats() {
+  async getStats() {
     return {
-      totalUsers: this._get("SELECT COUNT(*) as c FROM users WHERE role='patient'")?.c || 0,
-      totalDoctors: this._get("SELECT COUNT(*) as c FROM users WHERE role='doctor'")?.c || 0,
-      totalAppointments: this._get('SELECT COUNT(*) as c FROM appointments')?.c || 0,
-      pendingAppointments: this._get("SELECT COUNT(*) as c FROM appointments WHERE status='pending'")?.c || 0,
-      completedAppointments: this._get("SELECT COUNT(*) as c FROM appointments WHERE status='completed'")?.c || 0,
-      totalPrescriptions: this._get('SELECT COUNT(*) as c FROM prescriptions')?.c || 0,
-      totalReports: this._get('SELECT COUNT(*) as c FROM scan_reports')?.c || 0,
+      totalUsers: parseInt((await this._get("SELECT COUNT(*) as c FROM users WHERE role='patient'"))?.c || '0'),
+      totalDoctors: parseInt((await this._get("SELECT COUNT(*) as c FROM users WHERE role='doctor'"))?.c || '0'),
+      totalAppointments: parseInt((await this._get('SELECT COUNT(*) as c FROM appointments'))?.c || '0'),
+      pendingAppointments: parseInt((await this._get("SELECT COUNT(*) as c FROM appointments WHERE status='pending'"))?.c || '0'),
+      completedAppointments: parseInt((await this._get("SELECT COUNT(*) as c FROM appointments WHERE status='completed'"))?.c || '0'),
+      totalPrescriptions: parseInt((await this._get('SELECT COUNT(*) as c FROM prescriptions'))?.c || '0'),
+      totalReports: parseInt((await this._get('SELECT COUNT(*) as c FROM scan_reports'))?.c || '0'),
     };
   }
 }

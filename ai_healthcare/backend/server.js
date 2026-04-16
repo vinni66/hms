@@ -54,26 +54,31 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error', message: err.message });
 });
 
-// ── Start (wait for DB init) ──
-async function start() {
-  await db.ready;
+// ── Export App (Required for Vercel) ──
+module.exports = app;
 
-  app.listen(PORT, () => {
-    console.log(`
-  ╔══════════════════════════════════════════════╗
-  ║   🏥 AI Healthcare Backend                  ║
-  ║   Port: ${PORT}                                ║
-  ║   AI: Ollama (${process.env.OLLAMA_MODEL || 'llama3.2'})                    ║
-  ║   Ollama: ${process.env.OLLAMA_URL || 'http://localhost:11434'}    ║
-  ╚══════════════════════════════════════════════╝
-  
-  API:      http://localhost:${PORT}/api
-  Health:   http://localhost:${PORT}/api/health
-    `);
+// ── Start (Only if running directly / locally) ──
+if (require.main === module) {
+  async function start() {
+    await db.ready;
+
+    app.listen(PORT, () => {
+      console.log(`
+    ╔══════════════════════════════════════════════╗
+    ║   🏥 AI Healthcare Backend                  ║
+    ║   Port: ${PORT}                                ║
+    ║   AI: Ollama (${process.env.OLLAMA_MODEL || 'llama3.2'})                    ║
+    ║   Ollama: ${process.env.OLLAMA_URL || 'http://localhost:11434'}    ║
+    ╚══════════════════════════════════════════════╝
+    
+    API:      http://localhost:${PORT}/api
+    Health:   http://localhost:${PORT}/api/health
+      `);
+    });
+  }
+
+  start().catch(err => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
   });
 }
-
-start().catch(err => {
-  console.error('Failed to start server:', err);
-  process.exit(1);
-});
