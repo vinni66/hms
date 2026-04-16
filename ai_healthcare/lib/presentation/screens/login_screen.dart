@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -67,20 +68,44 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: isDark ? AppColors.darkGradient : null,
-          color: isDark ? null : AppColors.bgLight,
-        ),
-        child: SafeArea(
+      body: Stack(
+        children: [
+          // Background blobs
+          Positioned(
+            top: -100, left: -50,
+            child: Container(width: 300, height: 300, decoration: const BoxDecoration(shape: BoxShape.circle, gradient: AppColors.primaryGradient))
+              .animate(onPlay: (c) => c.repeat(reverse: true)).scale(end: const Offset(1.2, 1.2), duration: 6.seconds, curve: Curves.easeInOut),
+          ),
+          Positioned(
+            bottom: -50, right: -100,
+            child: Container(width: 400, height: 400, decoration: const BoxDecoration(shape: BoxShape.circle, gradient: AppColors.accentGradient))
+              .animate(onPlay: (c) => c.repeat(reverse: true)).slideX(begin: 0, end: -0.2, duration: 5.seconds, curve: Curves.easeInOut),
+          ),
+          // Blur layer
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
+              child: Container(color: (isDark ? AppColors.bgDark : Colors.white).withAlpha(150)),
+            ),
+          ),
+          // Content
+          SafeArea(
           child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(28),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 440),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
+                child: Container(
+                  padding: const EdgeInsets.all(32),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.cardDark.withAlpha(200) : Colors.white.withAlpha(200),
+                    borderRadius: BorderRadius.circular(32),
+                    border: Border.all(color: Colors.white.withAlpha(isDark ? 20 : 100), width: 1.5),
+                    boxShadow: [BoxShadow(color: Colors.black.withAlpha(isDark ? 80 : 20), blurRadius: 40, offset: const Offset(0, 15))],
+                  ),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       // Logo
@@ -216,7 +241,9 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
-    );
+    ],
+  ),
+);
   }
 
   Widget _demoRow(String label, String email, String pass, bool isDark) {

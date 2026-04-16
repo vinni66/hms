@@ -45,5 +45,20 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>AI Healthcare needs access to your camera for video consultations with your doctor.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>AI Healthcare needs access to your microphone for clear communication during video calls.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>AI Healthcare needs access to your photo library to allow you to upload medical reports and images.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>AI Healthcare needs permission to save medical records and consultation images to your gallery.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+		<string>voip</string>
+	</array>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<false/>
 </dict>
 </plist>

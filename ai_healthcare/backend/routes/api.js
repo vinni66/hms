@@ -7,6 +7,9 @@ const ollama = require('../services/ollama');
 const router = express.Router();
 const mw = auth.authMiddleware.bind(auth);
 
+// Global active calls registry -> targetId: { callerId, callerName, role }
+global.activeCalls = {};
+
 // ═══════════════════════════════════════
 //  AUTH (Public)
 // ═══════════════════════════════════════
@@ -55,6 +58,46 @@ router.get('/auth/me', mw, (req, res) => {
   const user = db.getUser(req.user.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json(user);
+});
+
+// ═══════════════════════════════════════
+//  CALL SIGNALING (Real-time Simulation)
+// ═══════════════════════════════════════
+
+router.post('/calls/start', mw, (req, res) => {
+  const { target_id, caller_name, role } = req.body;
+  if (!target_id) return res.status(400).json({ error: 'target_id is required' });
+  
+  global.activeCalls[target_id] = {
+    caller_id: req.user.id,
+    caller_name: caller_name || 'Anonymous',
+    role: role || 'user',
+    timestamp: Date.now()
+  };
+  res.json({ success: true, message: 'Call initiated' });
+});
+
+router.get('/calls/ping', mw, (req, res) => {
+  const incoming = global.activeCalls[req.user.id];
+  // Auto-expire calls older than 30 seconds
+  if (incoming && (Date.now() - incoming.timestamp > 30000)) {
+    delete global.activeCalls[req.user.id];
+    return res.json({ incoming: null });
+  }
+  res.json({ incoming: incoming || null });
+});
+
+router.post('/calls/end', mw, (req, res) => {
+  const { target_id } = req.body;
+  // If user ends incoming call
+  if (global.activeCalls[req.user.id]) {
+    delete global.activeCalls[req.user.id];
+  }
+  // If caller ends outgoing call
+  if (target_id && global.activeCalls[target_id] && global.activeCalls[target_id].caller_id === req.user.id) {
+    delete global.activeCalls[target_id];
+  }
+  res.json({ success: true });
 });
 
 // ═══════════════════════════════════════
@@ -228,9 +271,15 @@ router.post('/reports', mw, (req, res) => {
 
 router.post('/reports/:id/analyze', mw, async (req, res) => {
   try {
-    const { extracted_text } = req.body;
-    if (!extracted_text) return res.status(400).json({ error: 'extracted_text required' });
-    const analysis = await ollama.analyzeReport(extracted_text);
+    const { extracted_text, image } = req.body;
+    let analysis;
+    if (image) {
+      analysis = await ollama.chat([], 'Extract all text from this medical report and then provide a summary of the key findings in simple English, highlighting any abnormalities.', image);
+    } else if (extracted_text) {
+      analysis = await ollama.analyzeReport(extracted_text);
+    } else {
+      return res.status(400).json({ error: 'extracted_text or image required' });
+    }
     db.updateReport(req.params.id, { ai_summary: analysis.text });
     res.json({ ai_summary: analysis.text, risk: analysis.risk });
   } catch (err) {

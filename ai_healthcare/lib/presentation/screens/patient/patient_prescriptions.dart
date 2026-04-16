@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -5,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/colors.dart';
 import '../../../data/services/api_service.dart';
+import '../../widgets/liquid_background.dart';
 
 class PatientPrescriptions extends StatefulWidget {
   const PatientPrescriptions({super.key});
@@ -38,8 +40,7 @@ class _PatientPrescriptionsState extends State<PatientPrescriptions> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      decoration: BoxDecoration(gradient: isDark ? AppColors.darkGradient : null, color: isDark ? null : AppColors.bgLight),
+    return LiquidBackground(
       child: SafeArea(
         child: Column(children: [
           Padding(
@@ -86,10 +87,10 @@ class _PatientPrescriptionsState extends State<PatientPrescriptions> {
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark : Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.success.withAlpha(30)),
-        boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 12)],
+        color: isDark ? AppColors.cardDark.withAlpha(220) : Colors.white.withAlpha(240),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.success.withAlpha(50)),
+        boxShadow: [BoxShadow(color: Colors.black.withAlpha(isDark ? 20 : 12), blurRadius: 25)],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
@@ -174,14 +175,19 @@ class _PharmacyBottomSheetState extends State<_PharmacyBottomSheet> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.all(24),
-      height: MediaQuery.of(context).size.height * 0.6,
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.bgDarkSecondary : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24))
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          height: MediaQuery.of(context).size.height * 0.6,
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.bgDarkSecondary.withAlpha(200) : Colors.white.withAlpha(220),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+            border: Border(top: BorderSide(color: Colors.white.withAlpha(isDark ? 20 : 100), width: 1.5))
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Text('Local Availability', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? AppColors.textDark : AppColors.textLight)),
           IconButton(icon: Icon(LucideIcons.x, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary), onPressed: () => Navigator.pop(context))
@@ -230,6 +236,6 @@ class _PharmacyBottomSheetState extends State<_PharmacyBottomSheet> {
           )
         )
       ]),
-    );
+    )));
   }
 }

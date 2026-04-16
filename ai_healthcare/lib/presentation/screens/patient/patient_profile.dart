@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/colors.dart';
 import '../../../data/services/api_service.dart';
+import '../../widgets/liquid_background.dart';
 import '../login_screen.dart';
 
 class PatientProfile extends StatefulWidget {
@@ -19,8 +20,7 @@ class _PatientProfileState extends State<PatientProfile> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = _api.currentUser ?? {};
 
-    return Container(
-      decoration: BoxDecoration(gradient: isDark ? AppColors.darkGradient : null, color: isDark ? null : AppColors.bgLight),
+    return LiquidBackground(
       child: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -86,9 +86,10 @@ class _PatientProfileState extends State<PatientProfile> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withAlpha(20)),
+        color: isDark ? AppColors.cardDark.withAlpha(220) : Colors.white.withAlpha(240),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: color.withAlpha(isDark ? 20 : 40)),
+        boxShadow: [BoxShadow(color: Colors.black.withAlpha(isDark ? 20 : 8), blurRadius: 25)],
       ),
       child: Row(children: [
         Container(

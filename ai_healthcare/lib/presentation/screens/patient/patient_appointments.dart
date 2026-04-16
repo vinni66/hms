@@ -5,6 +5,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/colors.dart';
 import '../../../data/services/api_service.dart';
 import '../../widgets/book_appointment_dialog.dart';
+import '../../widgets/liquid_background.dart';
+import '../../../data/services/call_service.dart';
 
 class PatientAppointments extends StatefulWidget {
   const PatientAppointments({super.key});
@@ -37,8 +39,7 @@ class _PatientAppointmentsState extends State<PatientAppointments> with SingleTi
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      decoration: BoxDecoration(gradient: isDark ? AppColors.darkGradient : null, color: isDark ? null : AppColors.bgLight),
+    return LiquidBackground(
       child: SafeArea(
         child: Column(
           children: [
@@ -122,10 +123,10 @@ class _PatientAppointmentsState extends State<PatientAppointments> with SingleTi
         margin: const EdgeInsets.only(bottom: 14),
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: isDark ? AppColors.cardDark : Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: statusColor.withAlpha(30)),
-          boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 12)],
+          color: isDark ? AppColors.cardDark.withAlpha(220) : Colors.white.withAlpha(240),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: statusColor.withAlpha(50)),
+          boxShadow: [BoxShadow(color: Colors.black.withAlpha(isDark ? 20 : 12), blurRadius: 25)],
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
@@ -155,6 +156,25 @@ class _PatientAppointmentsState extends State<PatientAppointments> with SingleTi
             const SizedBox(width: 6),
             Text(DateFormat('hh:mm a').format(dt), style: TextStyle(fontSize: 13, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
           ]),
+          
+          if (status == 'pending') ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 42,
+              child: ElevatedButton.icon(
+                onPressed: () => CallService().startCall(apt['doctor_id'], _api.currentUser?['name'] ?? 'Patient', 'patient'),
+                icon: const Icon(LucideIcons.video, color: Colors.white, size: 18),
+                label: const Text('Join Video Call', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
+
           if (apt['consultation_notes'] != null && apt['consultation_notes'].toString().isNotEmpty) ...[
             const SizedBox(height: 12),
             Container(

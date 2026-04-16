@@ -4,6 +4,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/colors.dart';
 import '../../../data/services/api_service.dart';
 import '../login_screen.dart';
+import '../../widgets/liquid_nav_bar.dart';
+import '../../widgets/liquid_background.dart';
 
 class AdminShell extends StatefulWidget {
   const AdminShell({super.key});
@@ -35,45 +37,27 @@ class _AdminShellState extends State<AdminShell> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
+      extendBody: true,
       body: IndexedStack(index: _index, children: [
         _buildDashboard(isDark),
         _buildUsers(isDark),
         _buildSettings(isDark),
       ]),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(color: isDark ? AppColors.bgDarkSecondary : Colors.white, boxShadow: [BoxShadow(color: Colors.black.withAlpha(15), blurRadius: 20)]),
-        child: SafeArea(child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-            _nav(0, LucideIcons.layoutDashboard, 'Dashboard', isDark),
-            _nav(1, LucideIcons.users, 'Users', isDark),
-            _nav(2, LucideIcons.settings, 'Settings', isDark),
-          ]),
-        )),
-      ),
-    );
-  }
-
-  Widget _nav(int i, IconData icon, String label, bool isDark) {
-    final active = _index == i;
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: () => setState(() => _index = i),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        padding: EdgeInsets.symmetric(horizontal: active ? 16 : 12, vertical: 10),
-        decoration: BoxDecoration(color: active ? AppColors.adminColor.withAlpha(25) : Colors.transparent, borderRadius: BorderRadius.circular(14)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 22, color: active ? AppColors.adminColor : (isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
-          if (active) ...[const SizedBox(width: 8), Text(label, style: const TextStyle(color: AppColors.adminColor, fontSize: 13, fontWeight: FontWeight.w600))],
-        ]),
+      bottomNavigationBar: LiquidNavBar(
+        currentIndex: _index,
+        onTap: (index) => setState(() => _index = index),
+        activeColor: AppColors.adminColor,
+        items: [
+          LiquidNavItem(icon: LucideIcons.layoutDashboard, label: 'Dashboard'),
+          LiquidNavItem(icon: LucideIcons.users, label: 'Users'),
+          LiquidNavItem(icon: LucideIcons.settings, label: 'Settings'),
+        ],
       ),
     );
   }
 
   Widget _buildDashboard(bool isDark) {
-    return Container(
-      decoration: BoxDecoration(gradient: isDark ? AppColors.darkGradient : null, color: isDark ? null : AppColors.bgLight),
+    return LiquidBackground(
       child: SafeArea(child: RefreshIndicator(
         onRefresh: _load,
         child: ListView(padding: const EdgeInsets.all(24), children: [
@@ -118,7 +102,12 @@ class _AdminShellState extends State<AdminShell> {
               return Container(
                 margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(color: isDark ? AppColors.cardDark : Colors.white, borderRadius: BorderRadius.circular(14)),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.cardDark.withAlpha(220) : Colors.white.withAlpha(240),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: Colors.white.withAlpha(isDark ? 10 : 80)),
+                  boxShadow: [BoxShadow(color: Colors.black.withAlpha(isDark ? 20 : 10), blurRadius: 20)],
+                ),
                 child: Row(children: [
                   CircleAvatar(backgroundColor: roleColor.withAlpha(25), child: Text((u['name'] ?? 'U')[0], style: TextStyle(color: roleColor, fontWeight: FontWeight.w700))),
                   const SizedBox(width: 12),
@@ -143,8 +132,12 @@ class _AdminShellState extends State<AdminShell> {
   Widget _statCard(String label, String value, IconData icon, Color color, bool isDark) {
     return Expanded(child: Container(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(color: isDark ? AppColors.cardDark : Colors.white, borderRadius: BorderRadius.circular(18), border: Border.all(color: color.withAlpha(30)),
-        boxShadow: [BoxShadow(color: color.withAlpha(10), blurRadius: 15)]),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.cardDark.withAlpha(200) : Colors.white.withAlpha(200),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: color.withAlpha(isDark ? 20 : 50)),
+        boxShadow: [BoxShadow(color: color.withAlpha(10), blurRadius: 20)],
+      ),
       child: Row(children: [
         Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: color.withAlpha(20), borderRadius: BorderRadius.circular(12)),
           child: Icon(icon, color: color, size: 22)),
@@ -158,8 +151,7 @@ class _AdminShellState extends State<AdminShell> {
   }
 
   Widget _buildUsers(bool isDark) {
-    return Container(
-      decoration: BoxDecoration(gradient: isDark ? AppColors.darkGradient : null, color: isDark ? null : AppColors.bgLight),
+    return LiquidBackground(
       child: SafeArea(child: Column(children: [
         Padding(padding: const EdgeInsets.fromLTRB(24, 16, 24, 16), child: Row(children: [
           Text('User Management', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: isDark ? AppColors.textDark : AppColors.textLight)),
@@ -182,9 +174,14 @@ class _AdminShellState extends State<AdminShell> {
                     child: const Icon(LucideIcons.trash2, color: AppColors.error)),
                   onDismissed: (_) async { await _api.deleteUser(u['id']); _load(); },
                   child: Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(color: isDark ? AppColors.cardDark : Colors.white, borderRadius: BorderRadius.circular(14)),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.cardDark.withAlpha(220) : Colors.white.withAlpha(240),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.white.withAlpha(isDark ? 10 : 80)),
+                      boxShadow: [BoxShadow(color: Colors.black.withAlpha(isDark ? 20 : 10), blurRadius: 20)],
+                    ),
                     child: Row(children: [
                       CircleAvatar(
                         backgroundColor: u['role'] == 'admin' ? AppColors.adminColor 
@@ -208,8 +205,7 @@ class _AdminShellState extends State<AdminShell> {
   }
 
   Widget _buildSettings(bool isDark) {
-    return Container(
-      decoration: BoxDecoration(gradient: isDark ? AppColors.darkGradient : null, color: isDark ? null : AppColors.bgLight),
+    return LiquidBackground(
       child: SafeArea(child: Center(child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(mainAxisSize: MainAxisSize.min, children: [

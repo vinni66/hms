@@ -5,6 +5,7 @@ import '../../../core/colors.dart';
 import '../../../data/services/api_service.dart';
 
 import '../../widgets/book_appointment_dialog.dart';
+import '../../widgets/liquid_background.dart';
 
 class ReceptionistPatients extends StatefulWidget {
   const ReceptionistPatients({super.key});
@@ -31,8 +32,7 @@ class _ReceptionistPatientsState extends State<ReceptionistPatients> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      decoration: BoxDecoration(gradient: isDark ? AppColors.darkGradient : null, color: isDark ? null : AppColors.bgLight),
+    return LiquidBackground(
       child: SafeArea(
         child: Column(children: [
           Padding(
@@ -54,7 +54,12 @@ class _ReceptionistPatientsState extends State<ReceptionistPatients> {
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(color: isDark ? AppColors.cardDark : Colors.white, borderRadius: BorderRadius.circular(16)),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.cardDark.withAlpha(220) : Colors.white.withAlpha(240),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: Colors.white.withAlpha(isDark ? 10 : 80)),
+                        boxShadow: [BoxShadow(color: Colors.black.withAlpha(isDark ? 20 : 10), blurRadius: 20)],
+                      ),
                       child: Row(children: [
                         CircleAvatar(backgroundColor: AppColors.primary.withAlpha(30), child: Text((p['name'] ?? 'P')[0], style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700))),
                         const SizedBox(width: 14),

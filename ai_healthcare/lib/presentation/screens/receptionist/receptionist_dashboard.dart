@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/colors.dart';
 import '../../../data/services/api_service.dart';
+import '../../widgets/liquid_background.dart';
 
 class ReceptionistDashboard extends StatefulWidget {
   const ReceptionistDashboard({super.key});
@@ -34,8 +35,7 @@ class _ReceptionistDashboardState extends State<ReceptionistDashboard> {
     final pending = _appointments.where((a) => a['status'] == 'pending').length;
     final confirmed = _appointments.where((a) => a['status'] == 'confirmed').length;
 
-    return Container(
-      decoration: BoxDecoration(gradient: isDark ? AppColors.darkGradient : null, color: isDark ? null : AppColors.bgLight),
+    return LiquidBackground(
       child: SafeArea(
         child: RefreshIndicator(
           onRefresh: _load,
@@ -77,7 +77,12 @@ class _ReceptionistDashboardState extends State<ReceptionistDashboard> {
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: isDark ? AppColors.cardDark : Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.primary.withAlpha(20))),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.cardDark.withAlpha(220) : Colors.white.withAlpha(240),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: AppColors.primary.withAlpha(isDark ? 20 : 50)),
+                    boxShadow: [BoxShadow(color: Colors.black.withAlpha(isDark ? 20 : 10), blurRadius: 20)],
+                  ),
                   child: Row(children: [
                     Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: AppColors.primary.withAlpha(20), borderRadius: BorderRadius.circular(12)),
                       child: const Icon(LucideIcons.calendar, color: AppColors.primary, size: 22)),
@@ -100,7 +105,12 @@ class _ReceptionistDashboardState extends State<ReceptionistDashboard> {
   Widget _stat(String label, String value, Color color, bool isDark) {
     return Expanded(child: Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: isDark ? AppColors.cardDark : Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: color.withAlpha(30))),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.cardDark.withAlpha(200) : Colors.white.withAlpha(200),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: color.withAlpha(isDark ? 20 : 50)),
+        boxShadow: [BoxShadow(color: color.withAlpha(10), blurRadius: 20)],
+      ),
       child: Column(children: [
         Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: color)),
         const SizedBox(height: 4),

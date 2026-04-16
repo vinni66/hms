@@ -5,6 +5,10 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/colors.dart';
 import '../../../data/services/api_service.dart';
 import '../login_screen.dart';
+import '../../widgets/liquid_nav_bar.dart';
+import '../../widgets/liquid_background.dart';
+import '../../../data/services/call_service.dart';
+import 'dart:ui';
 
 class DoctorShell extends StatefulWidget {
   const DoctorShell({super.key});
@@ -18,45 +22,22 @@ class _DoctorShellState extends State<DoctorShell> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
+      extendBody: true,
       body: IndexedStack(index: _index, children: [
         _DoctorHome(api: _api),
         _DoctorAppointments(api: _api),
         _DoctorProfile(api: _api),
       ]),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.bgDarkSecondary : Colors.white,
-          boxShadow: [BoxShadow(color: Colors.black.withAlpha(15), blurRadius: 20, offset: const Offset(0, -4))],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-              _nav(0, LucideIcons.home, 'Dashboard', isDark),
-              _nav(1, LucideIcons.calendarCheck, 'Patients', isDark),
-              _nav(2, LucideIcons.user, 'Profile', isDark),
-            ]),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _nav(int i, IconData icon, String label, bool isDark) {
-    final active = _index == i;
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: () => setState(() => _index = i),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        padding: EdgeInsets.symmetric(horizontal: active ? 16 : 12, vertical: 10),
-        decoration: BoxDecoration(color: active ? AppColors.doctorColor.withAlpha(25) : Colors.transparent, borderRadius: BorderRadius.circular(14)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 22, color: active ? AppColors.doctorColor : (isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
-          if (active) ...[const SizedBox(width: 8), Text(label, style: const TextStyle(color: AppColors.doctorColor, fontSize: 13, fontWeight: FontWeight.w600))],
-        ]),
+      bottomNavigationBar: LiquidNavBar(
+        currentIndex: _index,
+        onTap: (index) => setState(() => _index = index),
+        activeColor: AppColors.doctorColor,
+        items: [
+          LiquidNavItem(icon: LucideIcons.home, label: 'Dashboard'),
+          LiquidNavItem(icon: LucideIcons.calendarCheck, label: 'Patients'),
+          LiquidNavItem(icon: LucideIcons.user, label: 'Profile'),
+        ],
       ),
     );
   }
@@ -88,8 +69,7 @@ class _DoctorHomeState extends State<_DoctorHome> {
     final pending = _appointments.where((a) => a['status'] == 'pending').length;
     final completed = _appointments.where((a) => a['status'] == 'completed').length;
 
-    return Container(
-      decoration: BoxDecoration(gradient: isDark ? AppColors.darkGradient : null, color: isDark ? null : AppColors.bgLight),
+    return LiquidBackground(
       child: SafeArea(
         child: RefreshIndicator(
           onRefresh: _load,
@@ -134,7 +114,12 @@ class _DoctorHomeState extends State<_DoctorHome> {
   Widget _stat(String label, String value, Color color, bool isDark) {
     return Expanded(child: Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: isDark ? AppColors.cardDark : Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: color.withAlpha(30))),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.cardDark.withAlpha(200) : Colors.white.withAlpha(200),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: color.withAlpha(isDark ? 20 : 50)),
+        boxShadow: [BoxShadow(color: color.withAlpha(10), blurRadius: 20)],
+      ),
       child: Column(children: [
         Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: color)),
         const SizedBox(height: 4),
@@ -148,7 +133,12 @@ class _DoctorHomeState extends State<_DoctorHome> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: isDark ? AppColors.cardDark : Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.doctorColor.withAlpha(20))),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.cardDark.withAlpha(220) : Colors.white.withAlpha(240),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.doctorColor.withAlpha(isDark ? 20 : 50)),
+        boxShadow: [BoxShadow(color: Colors.black.withAlpha(isDark ? 20 : 10), blurRadius: 20)],
+      ),
       child: Row(children: [
         Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: AppColors.doctorColor.withAlpha(20), borderRadius: BorderRadius.circular(12)),
           child: const Icon(LucideIcons.user, color: AppColors.doctorColor, size: 22)),
@@ -157,6 +147,14 @@ class _DoctorHomeState extends State<_DoctorHome> {
           Text(apt['patient_name'] ?? '', style: TextStyle(fontWeight: FontWeight.w600, color: isDark ? AppColors.textDark : AppColors.textLight)),
           Text(DateFormat('MMM dd, hh:mm a').format(dt), style: TextStyle(fontSize: 12, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
         ])),
+        // Video Call button
+        IconButton(
+          icon: const Icon(LucideIcons.video, color: AppColors.primary),
+          tooltip: 'Start Video Call',
+          onPressed: () {
+            CallService().startCall(apt['patient_id'], widget.api.currentUser?['name'] ?? 'Doctor', 'doctor');
+          },
+        ),
         // Write prescription button
         IconButton(
           icon: const Icon(LucideIcons.filePlus, color: AppColors.success),
@@ -181,10 +179,18 @@ class _DoctorHomeState extends State<_DoctorHome> {
 
     showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (ctx) {
       final isDark = Theme.of(ctx).brightness == Brightness.dark;
-      return StatefulBuilder(builder: (ctx, setS) => Container(
-        padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
-        decoration: BoxDecoration(color: isDark ? AppColors.bgDarkSecondary : Colors.white, borderRadius: const BorderRadius.vertical(top: Radius.circular(28))),
-        child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+      return StatefulBuilder(builder: (ctx, setS) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+          child: Container(
+            padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.bgDarkSecondary.withAlpha(220) : Colors.white.withAlpha(220),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+              border: Border(top: BorderSide(color: Colors.white.withAlpha(isDark ? 20 : 100), width: 1.5))
+            ),
+            child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.withAlpha(60), borderRadius: BorderRadius.circular(2)))),
           const SizedBox(height: 20),
           Text('Write Prescription', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: isDark ? AppColors.textDark : AppColors.textLight)),
@@ -227,7 +233,7 @@ class _DoctorHomeState extends State<_DoctorHome> {
             },
           )),
         ])),
-      ));
+      ))));
     });
   }
 }
@@ -253,8 +259,7 @@ class _DoctorAppointmentsState extends State<_DoctorAppointments> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      decoration: BoxDecoration(gradient: isDark ? AppColors.darkGradient : null, color: isDark ? null : AppColors.bgLight),
+    return LiquidBackground(
       child: SafeArea(
         child: Column(children: [
           Padding(
@@ -272,9 +277,14 @@ class _DoctorAppointmentsState extends State<_DoctorAppointments> {
                   final status = a['status'] ?? 'pending';
                   final sc = status == 'completed' ? AppColors.success : status == 'confirmed' ? AppColors.primary : AppColors.warning;
                   return Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(color: isDark ? AppColors.cardDark : Colors.white, borderRadius: BorderRadius.circular(14)),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.cardDark.withAlpha(220) : Colors.white.withAlpha(240),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.white.withAlpha(isDark ? 10 : 80)),
+                      boxShadow: [BoxShadow(color: Colors.black.withAlpha(isDark ? 20 : 10), blurRadius: 20)],
+                    ),
                     child: Row(children: [
                       CircleAvatar(backgroundColor: sc.withAlpha(30), child: Icon(LucideIcons.user, color: sc, size: 20)),
                       const SizedBox(width: 12),
@@ -301,8 +311,7 @@ class _DoctorProfile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = api.currentUser ?? {};
-    return Container(
-      decoration: BoxDecoration(gradient: isDark ? AppColors.darkGradient : null, color: isDark ? null : AppColors.bgLight),
+    return LiquidBackground(
       child: SafeArea(child: Center(child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(children: [

@@ -4,6 +4,10 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/colors.dart';
 import '../../../data/services/api_service.dart';
 import '../../widgets/book_appointment_dialog.dart';
+import '../../widgets/liquid_background.dart';
+import 'patient_records.dart';
+import 'ai_chat_screen.dart';
+import '../../../data/services/call_service.dart';
 
 class PatientHome extends StatefulWidget {
   const PatientHome({super.key});
@@ -15,6 +19,7 @@ class _PatientHomeState extends State<PatientHome> {
   final _api = ApiService();
   List _appointments = [];
   List _prescriptions = [];
+  List _metrics = [];
   bool _loading = true;
 
   @override
@@ -23,8 +28,8 @@ class _PatientHomeState extends State<PatientHome> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final results = await Future.wait([_api.getAppointments(), _api.getPrescriptions()]);
-      _appointments = results[0]; _prescriptions = results[1];
+      final results = await Future.wait([_api.getAppointments(), _api.getPrescriptions(), _api.getMetrics()]);
+      _appointments = results[0]; _prescriptions = results[1]; _metrics = results[2];
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
   }
@@ -45,8 +50,7 @@ class _PatientHomeState extends State<PatientHome> {
 
     return RefreshIndicator(
       onRefresh: _load,
-      child: Container(
-        decoration: BoxDecoration(gradient: isDark ? AppColors.darkGradient : null, color: isDark ? null : AppColors.bgLight),
+      child: LiquidBackground(
         child: CustomScrollView(
           slivers: [
             SliverToBoxAdapter(child: SafeArea(
@@ -101,11 +105,65 @@ class _PatientHomeState extends State<PatientHome> {
                           BookAppointmentDialog.show(context, onBooked: _load);
                         }),
                         const SizedBox(width: 12),
-                        _actionCard('View\nDoctors', LucideIcons.stethoscope, AppColors.accentGradient, isDark, () {}),
+                        _actionCard('Smart\nScanner', LucideIcons.scan, AppColors.accentGradient, isDark, () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const AiChatScreen()));
+                        }),
                         const SizedBox(width: 12),
-                        _actionCard('Health\nRecords', LucideIcons.fileHeart, AppColors.warmGradient, isDark, () {}),
+                        _actionCard('Health\nRecords', LucideIcons.fileHeart, AppColors.warmGradient, isDark, () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const PatientRecords()));
+                        }),
                       ],
                     ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.15),
+
+                    const SizedBox(height: 24),
+                    
+                    // Vital Statistics Dashboard Section
+                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                      Text('Vital Statistics', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: isDark ? AppColors.textDark : AppColors.textLight)),
+                      TextButton(
+                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PatientRecords())),
+                        child: const Text('View All', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
+                      )
+                    ]),
+                    const SizedBox(height: 12),
+                    
+                    if (_metrics.isEmpty && !_loading)
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(color: isDark ? AppColors.cardDark.withAlpha(200) : Colors.white.withAlpha(200), borderRadius: BorderRadius.circular(20)),
+                        child: Center(child: Text('No vitals logged. Track your health today!', style: TextStyle(color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary))),
+                      )
+                    else if (_metrics.isNotEmpty)
+                      SizedBox(
+                        height: 100,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _metrics.length,
+                          itemBuilder: (ctx, i) {
+                            final m = _metrics[i];
+                            return Container(
+                              width: 150,
+                              margin: const EdgeInsets.only(right: 12),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                gradient: isDark ? AppColors.darkGradient : null,
+                                color: isDark ? null : Colors.white.withAlpha(240),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: AppColors.primary.withAlpha(isDark ? 20 : 40)),
+                              ),
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+                                Row(children: [
+                                  Icon(m['metric_type'] == 'Heart Rate' ? LucideIcons.heartPulse : LucideIcons.activity, size: 16, color: AppColors.primary),
+                                  const SizedBox(width: 6),
+                                  Expanded(child: Text(m['metric_type'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary))),
+                                ]),
+                                const SizedBox(height: 8),
+                                Text('${m['value']} ${m['unit'] ?? ''}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? AppColors.textDark : AppColors.textLight)),
+                              ]),
+                            );
+                          },
+                        ),
+                      ).animate().fadeIn(delay: 350.ms),
 
                     const SizedBox(height: 24),
 
@@ -155,10 +213,10 @@ class _PatientHomeState extends State<PatientHome> {
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: isDark ? AppColors.cardDark : Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: color.withAlpha(40)),
-          boxShadow: [BoxShadow(color: color.withAlpha(15), blurRadius: 20)],
+          color: isDark ? AppColors.cardDark.withAlpha(200) : Colors.white.withAlpha(200),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.white.withAlpha(isDark ? 10 : 80)),
+          boxShadow: [BoxShadow(color: color.withAlpha(isDark ? 20 : 15), blurRadius: 25)],
         ),
         child: Row(children: [
           Container(
@@ -186,8 +244,8 @@ class _PatientHomeState extends State<PatientHome> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             gradient: gradient,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [BoxShadow(color: gradient.colors.first.withAlpha(40), blurRadius: 15, offset: const Offset(0, 6))],
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [BoxShadow(color: gradient.colors.first.withAlpha(60), blurRadius: 20, offset: const Offset(0, 8))],
           ),
           child: Column(children: [
             Icon(icon, color: Colors.white, size: 28),
@@ -207,10 +265,10 @@ class _PatientHomeState extends State<PatientHome> {
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark : Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.primary.withAlpha(20)),
-        boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 15)],
+        color: isDark ? AppColors.cardDark.withAlpha(220) : Colors.white.withAlpha(240),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withAlpha(isDark ? 15 : 100)),
+        boxShadow: [BoxShadow(color: Colors.black.withAlpha(isDark ? 20 : 8), blurRadius: 25)],
       ),
       child: Row(children: [
         Container(
@@ -234,11 +292,29 @@ class _PatientHomeState extends State<PatientHome> {
                 style: TextStyle(fontSize: 12, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
           ]),
         ])),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(color: AppColors.warning.withAlpha(25), borderRadius: BorderRadius.circular(8)),
-          child: const Text('Pending', style: TextStyle(color: AppColors.warning, fontSize: 11, fontWeight: FontWeight.w600)),
-        ),
+        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(color: AppColors.warning.withAlpha(25), borderRadius: BorderRadius.circular(8)),
+            child: const Text('Pending', style: TextStyle(color: AppColors.warning, fontSize: 11, fontWeight: FontWeight.w600)),
+          ),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: () {
+              CallService().startCall(apt['doctor_id'], _api.currentUser?['name'] ?? 'Patient', 'patient');
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(8)),
+              child: Row(mainAxisSize: MainAxisSize.min, children: const [
+                Icon(LucideIcons.video, size: 12, color: Colors.white),
+                SizedBox(width: 4),
+                Text('Join Call', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+              ]),
+            ),
+          ),
+        ]),
       ]),
     );
   }

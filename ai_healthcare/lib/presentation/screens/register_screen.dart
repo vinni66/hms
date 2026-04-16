@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -52,9 +53,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(gradient: isDark ? AppColors.darkGradient : null, color: isDark ? null : AppColors.bgLight),
-        child: SafeArea(
+      extendBodyBehindAppBar: true,
+      body: Stack(
+        children: [
+          // Background blobs
+          Positioned(
+            top: -150, right: -50,
+            child: Container(width: 350, height: 350, decoration: const BoxDecoration(shape: BoxShape.circle, gradient: AppColors.accentGradient))
+              .animate(onPlay: (c) => c.repeat(reverse: true)).slideY(begin: 0, end: 0.15, duration: 6.seconds, curve: Curves.easeInOut),
+          ),
+          Positioned(
+            bottom: -100, left: -100,
+            child: Container(width: 400, height: 400, decoration: const BoxDecoration(shape: BoxShape.circle, gradient: AppColors.primaryGradient))
+              .animate(onPlay: (c) => c.repeat(reverse: true)).scale(end: const Offset(1.15, 1.15), duration: 5.seconds, curve: Curves.easeInOut),
+          ),
+          // Blur layer
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
+              child: Container(color: (isDark ? AppColors.bgDark : Colors.white).withAlpha(150)),
+            ),
+          ),
+          SafeArea(
           child: Column(
             children: [
               // Top bar
@@ -72,12 +92,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(28),
+                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 10),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 440),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
+                    child: Container(
+                      padding: const EdgeInsets.all(32),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.cardDark.withAlpha(200) : Colors.white.withAlpha(200),
+                        borderRadius: BorderRadius.circular(32),
+                        border: Border.all(color: Colors.white.withAlpha(isDark ? 20 : 100), width: 1.5),
+                        boxShadow: [BoxShadow(color: Colors.black.withAlpha(isDark ? 80 : 20), blurRadius: 40, offset: const Offset(0, 15))],
+                      ),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           if (_error != null)
@@ -168,10 +196,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
+    ],
+  ),
+);
   }
 }

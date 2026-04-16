@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/colors.dart';
 import '../../../data/services/api_service.dart';
 import '../login_screen.dart';
+import '../../widgets/liquid_background.dart';
 
 class ReceptionistSettings extends StatelessWidget {
   const ReceptionistSettings({super.key});
@@ -14,8 +15,7 @@ class ReceptionistSettings extends StatelessWidget {
     final api = ApiService();
     final user = api.currentUser ?? {};
     
-    return Container(
-      decoration: BoxDecoration(gradient: isDark ? AppColors.darkGradient : null, color: isDark ? null : AppColors.bgLight),
+    return LiquidBackground(
       child: SafeArea(
         child: Center(
           child: Padding(

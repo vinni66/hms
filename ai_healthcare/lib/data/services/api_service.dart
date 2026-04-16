@@ -150,9 +150,29 @@ class ApiService {
   // ═══════════════════════════════════════
   Future<List<dynamic>> getReports() async => await _get('/reports');
   Future<Map<String, dynamic>> createReport(Map<String, dynamic> data) async => await _post('/reports', data);
-  Future<Map<String, dynamic>> analyzeReport(String reportId, String text) async =>
-      await _post('/reports/$reportId/analyze', {'extracted_text': text});
+  Future<Map<String, dynamic>> analyzeReport(String reportId, {String? text, String? imageBase64}) async {
+    final payload = <String, dynamic>{};
+    if (text != null) payload['extracted_text'] = text;
+    if (imageBase64 != null) payload['image'] = imageBase64;
+    return await _post('/reports/$reportId/analyze', payload);
+  }
   Future<void> deleteReport(String id) async => await _delete('/reports/$id');
+
+  // ═══════════════════════════════════════
+  //  CALL SIGNALING
+  // ═══════════════════════════════════════
+  Future<void> startCall(String targetId, String callerName, String role) async {
+    await _post('/calls/start', {'target_id': targetId, 'caller_name': callerName, 'role': role});
+  }
+  Future<Map<String, dynamic>?> pingCallStatus() async {
+    try {
+      final res = await _get('/calls/ping');
+      return res is Map<String, dynamic> ? res : null;
+    } catch (_) { return null; }
+  }
+  Future<void> endCall(String targetId) async {
+    await _post('/calls/end', {'target_id': targetId});
+  }
 
   // ═══════════════════════════════════════
   //  CHAT / AI

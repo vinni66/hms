@@ -1,0 +1,36 @@
+# Check out https://docs.codemagic.io/yaml/configuration/ for a full list of options
+workflows:
+  ios-workflow:
+    name: iOS Build Workflow
+    instance_type: mac_mini_m1
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Set up code signing settings on iOS project
+        script: |
+          xcode-project use-profiles --warn-only
+      - name: Get Flutter dependencies
+        script: |
+          flutter pub get
+      - name: Install Cocoapods
+        script: |
+          cd ios && pod install
+      - name: Build iOS project
+        script: |
+          flutter build ios --release --no-codesign
+      - name: Post-build (Zip .app for download)
+        script: |
+          cd build/ios/iphoneos
+          zip -r AI_Healthcare_iOS.zip Runner.app
+    artifacts:
+      - build/ios/iphoneos/*.zip
+    publishing:
+      email:
+        recipients:
+          - user@example.com # Replace with your email
+        notify:
+          success: true
+          failure: true
