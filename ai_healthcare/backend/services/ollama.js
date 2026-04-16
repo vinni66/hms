@@ -178,4 +178,4 @@ Include a risk tag: [RISK:NORMAL], [RISK:CAUTION], or [RISK:URGENT].`;
   }
 }
 
-module.exports = new OllamaService();
+module.exports = new AiService();
