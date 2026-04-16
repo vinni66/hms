@@ -9,13 +9,19 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ── Middleware ──
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Ensure DB is ready before any request
+app.use(async (req, res, next) => {
+  try {
+    await db.ready;
+    next();
+  } catch (err) {
+    res.status(500).json({ error: 'Database initialization failed', details: err.message });
+  }
+});
 
 // ── Static uploads folder ──
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
