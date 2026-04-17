@@ -200,6 +200,18 @@ class DatabaseService {
         );
       `);
 
+      // Pro Phase 5: Family Social Circle
+      await this._run(`
+        CREATE TABLE IF NOT EXISTS family_links (
+          id TEXT PRIMARY KEY,
+          requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          target_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'approved', 'rejected'
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(requester_id, target_id)
+        );
+      `);
+
       // Pro Phase 7: Wellness & Nutrition
       await this._run(`
         CREATE TABLE IF NOT EXISTS wellness_goals (

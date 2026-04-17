@@ -6,7 +6,8 @@ const db = require('./services/database');
 const apiRoutes = require('./routes/api');
 const reportsRoutes = require('./routes/reports');
 const wellnessRoutes = require('./routes/wellness');
-const { authenticate } = require('./middleware/auth');
+const auth = require('./services/auth');
+const authenticate = (req, res, next) => auth.authMiddleware(req, res, next);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
