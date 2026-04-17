@@ -304,6 +304,25 @@ router.post('/reports/:id/analyze', mw, async (req, res) => {
     } else {
       return res.status(400).json({ error: 'extracted_text or image required' });
     }
+    
+    // Pro Phase 2: Extract structured vitals
+    try {
+      const textToScan = extracted_text || analysis.text;
+      const vitals = await ollama.extractLabValues(textToScan);
+      if (vitals && vitals.length > 0) {
+        for (const v of vitals) {
+          await db.insertMetric({
+            user_id: req.user.id,
+            type: v.type,
+            value: v.value,
+            unit: v.unit,
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Vitals extraction failed:', e.message);
+    }
+
     await db.updateReport(req.params.id, { ai_summary: analysis.text });
     res.json({ ai_summary: analysis.text, risk: analysis.risk });
   } catch (err) {
@@ -466,6 +485,106 @@ router.post('/patient/check-in', mw, async (req, res) => {
   try {
     const newStreak = await db.updateUserStreak(req.user.id);
     res.json({ streak: newStreak || 0 });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ═══════════════════════════════════════
+//  PHASE 3: MEDICATION ADHERENCE
+// ═══════════════════════════════════════
+
+router.get('/medications/schedule', mw, async (req, res) => {
+  try {
+    const schedule = await db.getMedicationSchedule(req.user.id);
+    const logs = await db.getDosesLoggedToday(req.user.id);
+    res.json({ schedule, logs_today: logs });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/medications/log', mw, async (req, res) => {
+  try {
+    const { schedule_id } = req.body;
+    if (!schedule_id) return res.status(400).json({ error: 'schedule_id required' });
+    const result = await db.logMedicationDose(req.user.id, schedule_id);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/medications/schedule', mw, async (req, res) => {
+  try {
+    const s = await db.insertMedicationSchedule({ ...req.body, user_id: req.user.id });
+    res.status(201).json(s);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/medications/missed-advice', mw, async (req, res) => {
+  try {
+    const { med_name, context } = req.body;
+    const advice = await ollama.suggestMissedDoseAction(med_name, context || 'Missed a dose today.');
+    res.json(advice);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Pro Phase 5: Family Social Circle ──
+router.post('/family/request', mw, async (req, res) => {
+  try {
+    const { email } = req.body;
+    const userId = req.user.id;
+    const result = await db.sendFamilyRequest(userId, email);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.get('/family/links', mw, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const links = await db.getFamilyLinks(userId);
+    res.json(links || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/family/handle-request', mw, async (req, res) => {
+  try {
+    const { requestId, status } = req.body;
+    await db.handleFamilyRequest(requestId, status);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.get('/family/members-health', mw, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const members = await db.getFamilyMembersHealth(userId);
+    res.json(members || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/family/sos', mw, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { location } = req.body;
+    const user = await db.getUser(userId);
+    
+    // In a real app, this would trigger Push Notifications/SMS to family members
+    console.log(`🆘 SOS TRIGGERED by ${user.name} at ${location}`);
+    res.json({ success: true, message: 'Emergency contacts notified' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

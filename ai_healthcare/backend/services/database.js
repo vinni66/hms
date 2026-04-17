@@ -178,6 +178,41 @@ class DatabaseService {
         console.warn('⚠️ Column Update Warning:', e.message);
       }
 
+      // Pro Phase 2: Medication Adherence Tracker
+      await this._run(`
+        CREATE TABLE IF NOT EXISTS medication_schedule (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          med_name TEXT NOT NULL,
+          frequency TEXT NOT NULL, -- e.g. "Daily", "Twice a day"
+          doses_per_day INTEGER DEFAULT 1,
+          is_active BOOLEAN DEFAULT TRUE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      await this._run(`
+        CREATE TABLE IF NOT EXISTS medication_logs (
+          id TEXT PRIMARY KEY,
+          schedule_id TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          taken_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // Pro Phase 7: Wellness & Nutrition
+      await this._run(`
+        CREATE TABLE IF NOT EXISTS wellness_goals (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          type TEXT NOT NULL, -- 'water', 'steps', 'calories', 'sleep'
+          target_value REAL NOT NULL,
+          unit TEXT DEFAULT '',
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, type)
+        );
+      `);
+
       console.log('✅ Supabase Database initialized with tables & seed data');
     } catch (err) {
       console.error('❌ Database Initialization Error:', err);
@@ -437,6 +472,109 @@ class DatabaseService {
     
     await this._run('UPDATE users SET health_streak=$1, last_checkin=CURRENT_TIMESTAMP WHERE id=$2', [newStreak, userId]);
     return newStreak;
+  }
+
+  // ── Pro Phase 2: Medication ──
+  async getMedicationSchedule(userId) {
+    return await this._all('SELECT * FROM medication_schedule WHERE user_id=$1 AND is_active=TRUE', [userId]);
+  }
+
+  async getDosesLoggedToday(userId) {
+    return await this._all(`
+      SELECT * FROM medication_logs 
+      WHERE user_id=$1 AND taken_at > CURRENT_DATE
+    `, [userId]);
+  }
+
+  async logMedicationDose(userId, scheduleId) {
+    const id = uuidv4();
+    await this._run('INSERT INTO medication_logs (id, schedule_id, user_id) VALUES ($1,$2,$3)', [id, scheduleId, userId]);
+    return { id };
+  }
+
+  async insertMedicationSchedule(s) {
+    const id = uuidv4();
+    await this._run('INSERT INTO medication_schedule (id, user_id, med_name, frequency, doses_per_day) VALUES ($1,$2,$3,$4,$5)',
+      [id, s.user_id, s.med_name, s.frequency || 'Daily', s.doses_per_day || 1]);
+    return { id, ...s };
+  }
+
+  // ── Pro Phase 5: Family ──
+  async getFamilyLinks(userId) {
+    // Get both requests sent and received
+    return await this._all(`
+      SELECT f.*, u1.name as requester_name, u2.name as target_name, u1.email as requester_email, u2.email as target_email
+      FROM family_links f
+      JOIN users u1 ON f.requester_id = u1.id
+      JOIN users u2 ON f.target_id = u2.id
+      WHERE requester_id = $1 OR target_id = $1
+    `, [userId]);
+  }
+
+  async sendFamilyRequest(requesterId, targetEmail) {
+    const target = await this.getUserByEmail(targetEmail);
+    if (!target) throw new Error('User not found');
+    if (target.id === requesterId) throw new Error('Cannot link with self');
+    
+    // Check existing
+    const existing = await this._get('SELECT * FROM family_links WHERE (requester_id=$1 AND target_id=$2) OR (requester_id=$2 AND target_id=$1)', [requesterId, target.id]);
+    if (existing) throw new Error('Request already exists or linked');
+
+    const id = uuidv4();
+    await this._run('INSERT INTO family_links (id, requester_id, target_id) VALUES ($1,$2,$3)', [id, requesterId, target.id]);
+    return { id, target_email: targetEmail };
+  }
+
+  async handleFamilyRequest(requestId, status) {
+    await this._run('UPDATE family_links SET status=$1 WHERE id=$2', [status, requestId]);
+  }
+
+  async getFamilyMembersHealth(userId) {
+    // Get approved family members (requester or target)
+    const links = await this._all(`
+      SELECT * FROM family_links 
+      WHERE (requester_id = $1 OR target_id = $1) AND status = 'approved'
+    `, [userId]);
+
+    const members = [];
+    for (const link of links) {
+      const otherId = link.requester_id === userId ? link.target_id : link.requester_id;
+      const user = await this.getUser(otherId);
+      
+      // Get latest metrics for each member
+      const hr = await this.getLatestMetric(otherId, 'Heart Rate');
+      const bp = await this.getLatestMetric(otherId, 'Blood Pressure');
+      const spo2 = await this.getLatestMetric(otherId, 'SpO2');
+      
+      members.push({
+        id: otherId,
+        name: user.name,
+        avatar_color: user.avatar_color,
+        vitals: {
+          heart_rate: hr ? hr.value : null,
+          blood_pressure: bp ? bp.value : null,
+          spo2: spo2 ? spo2.value : null,
+          last_updated: hr?.timestamp || bp?.timestamp || spo2?.timestamp || null
+        }
+      });
+    }
+    return members;
+  }
+
+  // ── Pro Phase 7: Wellness ──
+  async getWellnessGoals(userId) {
+    return await this._all('SELECT * FROM wellness_goals WHERE user_id=$1', [userId]);
+  }
+
+  async updateWellnessGoal(userId, type, value, unit = '') {
+    const id = uuidv4();
+    await this._run(`
+      INSERT INTO wellness_goals (id, user_id, type, target_value, unit, updated_at)
+      VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+      ON CONFLICT (user_id, type) 
+      DO UPDATE SET target_value = EXCLUDED.target_value, unit = EXCLUDED.unit, updated_at = CURRENT_TIMESTAMP
+    `, [id, userId, type, value, unit]);
+    return { user_id: userId, type, target_value: value, unit };
   }
 }
 

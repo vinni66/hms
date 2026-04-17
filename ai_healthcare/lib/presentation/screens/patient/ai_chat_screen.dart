@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/colors.dart';
 import '../../../data/services/api_service.dart';
+import '../../widgets/liquid_background.dart';
+import '../../widgets/glass_container.dart';
 
 class AiChatScreen extends StatefulWidget {
   const AiChatScreen({super.key});
@@ -95,7 +97,6 @@ class _AiChatScreenState extends State<AiChatScreen> {
         base64Str = base64Encode(bytes);
       }
 
-      // Format history accurately for the API
       final history = _messages.map((m) => {
         'role': m['is_user'] == true ? 'user' : 'assistant',
         'content': m['text'] ?? '',
@@ -126,162 +127,165 @@ class _AiChatScreenState extends State<AiChatScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
-      appBar: AppBar(
-        title: Row(children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(gradient: AppColors.primaryGradient, borderRadius: BorderRadius.circular(10)),
-            child: const Icon(LucideIcons.bot, color: Colors.white, size: 20),
+      body: LiquidBackground(
+        child: Column(children: [
+          SafeArea(
+            bottom: false,
+            child: _buildHeader(isDark),
           ),
-          const SizedBox(width: 12),
-          const Text('Rakshak Assistant', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-        ]),
-        backgroundColor: isDark ? AppColors.bgDarkSecondary : Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: Icon(LucideIcons.trash2, color: AppColors.error.withAlpha(200)),
-            onPressed: () async {
-              await _api.clearChat("patient_convo_1");
-              setState(() {
-                _messages.clear();
-                _messages.add({
-                  'is_user': false,
-                  'text': "Hello! I'm Rakshak 🩺. I have access to your basic profile and past appointment history. How can I assist you today? You can detail your symptoms or upload an image of a medical report/issue.",
-                  'risk_level': 'normal'
-                });
-              });
-            },
-          )
-        ],
-      ),
-      body: Column(children: [
-        Expanded(
-          child: ListView.builder(
-            controller: _scrollC,
-            padding: const EdgeInsets.all(20),
-            itemCount: _messages.length,
-            itemBuilder: (ctx, i) {
-              final m = _messages[i];
-              final bool isUser = m['is_user'] == true;
-              final rLevel = m['risk_level'] ?? 'normal';
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollC,
+              padding: const EdgeInsets.all(20),
+              itemCount: _messages.length,
+              itemBuilder: (ctx, i) {
+                final m = _messages[i];
+                final bool isUser = m['is_user'] == true;
+                final rLevel = m['risk_level'] ?? 'normal';
 
-              Color bubbleColor;
-              if (isUser) {
-                bubbleColor = AppColors.primary;
-              } else {
-                bubbleColor = rLevel == 'urgent' ? AppColors.error.withAlpha(isDark? 80: 40)
-                            : rLevel == 'caution' ? AppColors.warning.withAlpha(isDark? 80: 40)
-                            : (isDark ? AppColors.cardDark : Colors.white);
-              }
+                Color bubbleColor;
+                if (isUser) {
+                  bubbleColor = AppColors.primary;
+                } else {
+                  bubbleColor = rLevel == 'urgent' ? AppColors.error.withAlpha(isDark ? 80 : 40)
+                               : rLevel == 'caution' ? AppColors.warning.withAlpha(isDark ? 80 : 40)
+                               : (isDark ? AppColors.cardDark : Colors.white);
+                }
 
-              return Align(
-                alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-                child: Container(
-                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: bubbleColor,
-                    borderRadius: BorderRadius.circular(20).copyWith(
-                      bottomRight: isUser ? Radius.zero : const Radius.circular(20),
-                      bottomLeft: !isUser ? Radius.zero : const Radius.circular(20),
-                    ),
-                    boxShadow: [if (!isUser) BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 10)],
-                  ),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    if (!isUser && rLevel != 'normal')
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: rLevel == 'urgent' ? AppColors.error : AppColors.warning,
-                          borderRadius: BorderRadius.circular(6)
+                return Align(
+                  alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                  child: GlassContainer(
+                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    opacity: isUser ? 0.3 : (isDark ? 0.08 : 0.6),
+                    blur: 15,
+                    borderRadius: 20,
+                    color: isUser ? AppColors.primary : bubbleColor,
+                    border: Border.all(color: isUser ? AppColors.primary.withAlpha(100) : Colors.white.withAlpha(isDark ? 30 : 100)),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      if (!isUser && rLevel != 'normal')
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: rLevel == 'urgent' ? AppColors.error : AppColors.warning,
+                            borderRadius: BorderRadius.circular(6)
+                          ),
+                          child: Text(rLevel.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white)),
                         ),
-                        child: Text(rLevel.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white)),
-                      ),
-                    
-                    if (m['image'] == true)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(8)),
-                        child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                          Icon(LucideIcons.image, size: 16, color: Colors.white),
-                          SizedBox(width: 8),
-                          Text('Image Attached', style: TextStyle(color: Colors.white, fontSize: 12))
-                        ]),
-                      ),
                       
-                    Text(m['text'], style: TextStyle(
-                      color: isUser ? Colors.white : (isDark ? AppColors.textDark : AppColors.textLight),
-                      height: 1.5,
-                    )),
-                  ]),
-                ),
-              ).animate().fadeIn().slideY(begin: 0.1, end: 0);
-            },
+                      if (m['image'] == true)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(8)),
+                          child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(LucideIcons.image, size: 16, color: Colors.white),
+                            SizedBox(width: 8),
+                            Text('Image Attached', style: TextStyle(color: Colors.white, fontSize: 12))
+                          ]),
+                        ),
+                        
+                      Text(m['text'], style: TextStyle(
+                        color: isUser ? Colors.white : (isDark ? AppColors.textDark : AppColors.textLight),
+                        height: 1.5,
+                      )),
+                    ]),
+                  ),
+                ).animate().fadeIn().slideY(begin: 0.1, end: 0);
+              },
+            ),
           ),
-        ),
-        
-        if (_loading)
-          const Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator(color: AppColors.primary)),
+          
+          if (_loading)
+            const Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator(color: AppColors.primary)),
 
-        // Input Area
-        Container(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, MediaQuery.of(context).padding.bottom + 16),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.bgDarkSecondary : Colors.white,
-            boxShadow: [BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 20, offset: const Offset(0, -5))],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_selectedImage != null)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: AppColors.primary.withAlpha(20), borderRadius: BorderRadius.circular(12)),
-                  child: Row(children: [
-                    const Icon(LucideIcons.fileImage, color: AppColors.primary),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text(_selectedImage!.name, style: const TextStyle(fontSize: 12, color: AppColors.primary), maxLines: 1)),
-                    IconButton(icon: const Icon(LucideIcons.x, size: 18, color: AppColors.primary), onPressed: () => setState(()=> _selectedImage = null))
-                  ]),
-                ),
-              Row(children: [
-                IconButton(
-                  icon: const Icon(LucideIcons.paperclip, color: AppColors.primary),
-                  onPressed: _loading ? null : _pickImage,
-                ),
-                Expanded(
-                  child: TextField(
-                    controller: _msgC,
-                    decoration: InputDecoration(
-                      hintText: _selectedImage != null ? 'Add a message about this image...' : 'Ask Rakshak...',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
-                      filled: true,
-                      fillColor: isDark ? AppColors.bgDark : AppColors.bgLight,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          // Input Area
+          GlassContainer(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, MediaQuery.of(context).padding.bottom + 16),
+            borderRadius: 0,
+            opacity: isDark ? 0.08 : 0.6,
+            blur: 25,
+            border: Border(top: BorderSide(color: Colors.white.withAlpha(isDark ? 30 : 100))),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_selectedImage != null)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: AppColors.primary.withAlpha(20), borderRadius: BorderRadius.circular(12)),
+                    child: Row(children: [
+                      const Icon(LucideIcons.fileImage, color: AppColors.primary),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text(_selectedImage!.name, style: const TextStyle(fontSize: 12, color: AppColors.primary), maxLines: 1)),
+                      IconButton(icon: const Icon(LucideIcons.x, size: 18, color: AppColors.primary), onPressed: () => setState(()=> _selectedImage = null))
+                    ]),
+                  ),
+                Row(children: [
+                  IconButton(
+                    icon: const Icon(LucideIcons.paperclip, color: AppColors.primary),
+                    onPressed: _loading ? null : _pickImage,
+                  ),
+                  Expanded(
+                    child: TextField(
+                      controller: _msgC,
+                      decoration: InputDecoration(
+                        hintText: _selectedImage != null ? 'Add a message about this image...' : 'Ask Rakshak...',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
+                        filled: true,
+                        fillColor: isDark ? AppColors.bgDark.withAlpha(100) : AppColors.bgLight.withAlpha(100),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      ),
+                      onSubmitted: (_) => _send(),
+                      enabled: !_loading,
                     ),
-                    onSubmitted: (_) => _send(),
-                    enabled: !_loading,
                   ),
-                ),
-                const SizedBox(width: 8),
-                InkWell(
-                  onTap: _loading ? null : _send,
-                  child: Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(gradient: AppColors.primaryGradient, shape: BoxShape.circle),
-                    child: const Icon(LucideIcons.send, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  InkWell(
+                    onTap: _loading ? null : _send,
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(gradient: AppColors.primaryGradient, shape: BoxShape.circle),
+                      child: const Icon(LucideIcons.send, color: Colors.white, size: 20),
+                    ),
                   ),
-                ),
-              ]),
-            ],
+                ]),
+              ],
+            ),
           ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _buildHeader(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: Row(children: [
+        IconButton(icon: const Icon(LucideIcons.arrowLeft), onPressed: () => Navigator.pop(context)),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(gradient: AppColors.primaryGradient, borderRadius: BorderRadius.circular(10)),
+          child: const Icon(LucideIcons.bot, color: Colors.white, size: 20),
         ),
+        const SizedBox(width: 12),
+        const Expanded(child: Text('Rakshak Assistant', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600))),
+        IconButton(
+          icon: Icon(LucideIcons.trash2, color: AppColors.error.withAlpha(200)),
+          onPressed: () async {
+            await _api.clearChat("patient_convo_1");
+            setState(() {
+              _messages.clear();
+              _messages.add({
+                'is_user': false,
+                'text': "Hello! I'm Rakshak 🩺. I have access to your basic profile and past appointment history. How can I assist you today? You can detail your symptoms or upload an image of a medical report/issue.",
+                'risk_level': 'normal'
+              });
+            });
+          },
+        )
       ]),
     );
   }

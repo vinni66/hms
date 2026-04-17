@@ -4,6 +4,9 @@ const cors = require('cors');
 const path = require('path');
 const db = require('./services/database');
 const apiRoutes = require('./routes/api');
+const reportsRoutes = require('./routes/reports');
+const wellnessRoutes = require('./routes/wellness');
+const { authenticate } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,6 +31,8 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ── API Routes ──
 app.use('/api', apiRoutes);
+app.use('/api/reports', authenticate, reportsRoutes);
+app.use('/api/wellness', authenticate, wellnessRoutes);
 
 // ── Root ──
 app.get('/', (req, res) => {

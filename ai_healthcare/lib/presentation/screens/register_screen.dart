@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/colors.dart';
 import '../../data/services/api_service.dart';
+import '../widgets/glass_container.dart';
 import 'patient/patient_shell.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -95,14 +96,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 10),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 440),
-                    child: Container(
+                    child: GlassContainer(
                       padding: const EdgeInsets.all(32),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.cardDark.withAlpha(200) : Colors.white.withAlpha(200),
-                        borderRadius: BorderRadius.circular(32),
-                        border: Border.all(color: Colors.white.withAlpha(isDark ? 20 : 100), width: 1.5),
-                        boxShadow: [BoxShadow(color: Colors.black.withAlpha(isDark ? 80 : 20), blurRadius: 40, offset: const Offset(0, 15))],
-                      ),
+                      opacity: isDark ? 0.08 : 0.6,
+                      blur: 25,
+                      borderRadius: 32,
                       child: Form(
                         key: _formKey,
                         child: Column(

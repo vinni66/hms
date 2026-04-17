@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'core/theme.dart';
-import 'data/services/api_service.dart';
+import 'core/services/notification_service.dart';
 import 'data/services/call_service.dart';
+import 'data/services/api_service.dart';
 import 'presentation/screens/login_screen.dart';
 import 'presentation/screens/patient/patient_shell.dart';
 import 'presentation/screens/doctor/doctor_shell.dart';
@@ -13,6 +14,7 @@ final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>()
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService().init();
   await ApiService().loadToken();
   CallService().startListening(); // Run globally and persistently
   runApp(const MyApp());

@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/colors.dart';
 import '../../data/services/api_service.dart';
+import '../widgets/glass_container.dart';
 import 'register_screen.dart';
 import 'patient/patient_shell.dart';
 import 'doctor/doctor_shell.dart';
@@ -122,30 +123,24 @@ class _LoginScreenState extends State<LoginScreen> {
                     padding: const EdgeInsets.all(28),
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 440),
-                      child: Container(
+                      child: GlassContainer(
                         padding: const EdgeInsets.all(32),
-                        decoration: BoxDecoration(
-                          color: isDark ? AppColors.cardDark.withAlpha(200) : Colors.white.withAlpha(200),
-                          borderRadius: BorderRadius.circular(32),
-                          border: Border.all(color: Colors.white.withAlpha(isDark ? 20 : 100), width: 1.5),
-                          boxShadow: [BoxShadow(color: Colors.black.withAlpha(isDark ? 80 : 20), blurRadius: 40, offset: const Offset(0, 15))],
-                        ),
+                        opacity: isDark ? 0.08 : 0.6,
+                        blur: 25,
+                        borderRadius: 32,
                         child: Form(
                           key: _formKey,
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               // Logo
-                              Container(
+                              GlassContainer(
                                 padding: const EdgeInsets.all(16),
-                                width: 100, height: 100,
-                                decoration: BoxDecoration(
-                                  color: isDark ? Colors.white.withAlpha(10) : Colors.white,
-                                  borderRadius: BorderRadius.circular(28),
-                                  boxShadow: [BoxShadow(color: AppColors.primary.withAlpha(isDark ? 40 : 60), blurRadius: 30, offset: const Offset(0, 10))],
-                                  border: Border.all(color: Colors.white.withAlpha(isDark ? 30 : 100), width: 1.5),
-                                ),
-                                child: Image.asset('assets/images/logo.png'),
+                                blur: 10,
+                                opacity: isDark ? 0.1 : 0.8,
+                                borderRadius: 28,
+                                border: Border.all(color: Colors.white.withAlpha(isDark ? 30 : 100), width: 1.5),
+                                child: SizedBox(width: 68, height: 68, child: Image.asset('assets/images/logo.png')),
                               ).animate().scale(duration: 800.ms, curve: Curves.elasticOut),
 
                               const SizedBox(height: 28),

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/colors.dart';
 import '../../data/services/api_service.dart';
+import 'glass_container.dart';
 
 class BookAppointmentDialog extends StatefulWidget {
   final Map<String, dynamic>? patient; // Optional: specify patient if receptionist is booking
@@ -50,12 +51,12 @@ class _BookAppointmentDialogState extends State<BookAppointmentDialog> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    return Container(
+    return GlassContainer(
       padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.bgDarkSecondary : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
+      borderRadius: 0, // Bottom sheet usually fills width
+      opacity: isDark ? 0.08 : 0.6,
+      blur: 25,
+      border: Border(top: BorderSide(color: Colors.white.withAlpha(isDark ? 30 : 100), width: 1.5)),
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
         Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.withAlpha(60), borderRadius: BorderRadius.circular(2)))),
         const SizedBox(height: 20),

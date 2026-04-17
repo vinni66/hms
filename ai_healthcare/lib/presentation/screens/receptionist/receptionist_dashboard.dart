@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/colors.dart';
 import '../../../data/services/api_service.dart';
 import '../../widgets/liquid_background.dart';
+import '../../widgets/glass_container.dart';
 
 class ReceptionistDashboard extends StatefulWidget {
   const ReceptionistDashboard({super.key});
@@ -74,15 +75,13 @@ class _ReceptionistDashboardState extends State<ReceptionistDashboard> {
               else ..._appointments.take(10).toList().asMap().entries.map((e) {
                 final apt = e.value;
                 final dt = DateTime.tryParse(apt['date_time'] ?? '') ?? DateTime.now();
-                return Container(
+                return GlassContainer(
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.cardDark.withAlpha(220) : Colors.white.withAlpha(240),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: AppColors.primary.withAlpha(isDark ? 20 : 50)),
-                    boxShadow: [BoxShadow(color: Colors.black.withAlpha(isDark ? 20 : 10), blurRadius: 20)],
-                  ),
+                  opacity: isDark ? 0.08 : 0.6,
+                  blur: 15,
+                  borderRadius: 24,
+                  border: Border.all(color: AppColors.primary.withAlpha(isDark ? 30 : 80)),
                   child: Row(children: [
                     Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: AppColors.primary.withAlpha(20), borderRadius: BorderRadius.circular(12)),
                       child: const Icon(LucideIcons.calendar, color: AppColors.primary, size: 22)),
@@ -103,14 +102,12 @@ class _ReceptionistDashboardState extends State<ReceptionistDashboard> {
   }
 
   Widget _stat(String label, String value, Color color, bool isDark) {
-    return Expanded(child: Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark.withAlpha(200) : Colors.white.withAlpha(200),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: color.withAlpha(isDark ? 20 : 50)),
-        boxShadow: [BoxShadow(color: color.withAlpha(10), blurRadius: 20)],
-      ),
+    return Expanded(
+      child: GlassContainer(
+        padding: const EdgeInsets.all(16),
+        opacity: isDark ? 0.08 : 0.6,
+        blur: 15,
+        border: Border.all(color: color.withAlpha(isDark ? 40 : 100)),
       child: Column(children: [
         Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: color)),
         const SizedBox(height: 4),

@@ -20,12 +20,12 @@ class VitalsChart extends StatelessWidget {
     
     // Filter and sort metrics for this type
     final filtered = metrics
-        .where((m) => m['metric_type'] == type)
+        .where((m) => m['metric_type'] == type || m['type'] == type)
         .toList();
     
     filtered.sort((a, b) {
-      final da = DateTime.tryParse(a['timestamp'] ?? '') ?? DateTime.now();
-      final db = DateTime.tryParse(b['timestamp'] ?? '') ?? DateTime.now();
+      final da = DateTime.tryParse(a['timestamp'] ?? a['date_recorded'] ?? '') ?? DateTime.now();
+      final db = DateTime.tryParse(b['timestamp'] ?? b['date_recorded'] ?? '') ?? DateTime.now();
       return da.compareTo(db);
     });
 
@@ -73,7 +73,7 @@ class VitalsChart extends StatelessWidget {
                 interval: 1,
                 getTitlesWidget: (value, meta) {
                   if (value.toInt() >= recent.length) return const SizedBox();
-                  final dt = DateTime.tryParse(recent[value.toInt()]['timestamp'] ?? '') ?? DateTime.now();
+                  final dt = DateTime.tryParse(recent[value.toInt()]['timestamp'] ?? recent[value.toInt()]['date_recorded'] ?? '') ?? DateTime.now();
                   return Padding(
                     padding: const EdgeInsets.only(top: 8.0),
                     child: Text('${dt.day}/${dt.month}', style: const TextStyle(fontSize: 9, color: Colors.grey)),
@@ -84,7 +84,7 @@ class VitalsChart extends StatelessWidget {
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                interval: 20,
+                interval: _calculateInterval(spots),
                 reservedSize: 40,
                 getTitlesWidget: (value, meta) => Text(value.toInt().toString(), style: const TextStyle(fontSize: 9, color: Colors.grey)),
               ),
@@ -120,5 +120,18 @@ class VitalsChart extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  double _calculateInterval(List<FlSpot> spots) {
+    if (spots.isEmpty) return 20;
+    double min = spots.first.y;
+    double max = spots.first.y;
+    for (var s in spots) {
+      if (s.y < min) min = s.y;
+      if (s.y > max) max = s.y;
+    }
+    double diff = max - min;
+    if (diff == 0) return 10;
+    return (diff / 4).clamp(1, 100).toDouble();
   }
 }

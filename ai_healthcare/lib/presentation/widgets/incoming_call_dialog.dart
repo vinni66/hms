@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/colors.dart';
+import 'glass_container.dart';
 
 class IncomingCallDialog extends StatelessWidget {
   final String callerName;
@@ -22,20 +23,26 @@ class IncomingCallDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.black.withAlpha(180),
-                Colors.black.withAlpha(240),
-              ],
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withAlpha(180),
+                      Colors.black.withAlpha(240),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
-          child: SafeArea(
+          SafeArea(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -94,9 +101,13 @@ class IncomingCallDialog extends StatelessWidget {
                         children: [
                           GestureDetector(
                             onTap: onDecline,
-                            child: Container(
+                            child: GlassContainer(
                               padding: const EdgeInsets.all(24),
-                              decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
+                              opacity: 0.15,
+                              blur: 20,
+                              borderRadius: 100,
+                              color: Colors.red,
+                              border: Border.all(color: Colors.red.withAlpha(100), width: 2),
                               child: const Icon(LucideIcons.phoneOff, color: Colors.white, size: 36),
                             ),
                           ),
@@ -111,13 +122,13 @@ class IncomingCallDialog extends StatelessWidget {
                         children: [
                           GestureDetector(
                             onTap: onAccept,
-                            child: Container(
+                            child: GlassContainer(
                               padding: const EdgeInsets.all(24),
-                              decoration: BoxDecoration(
-                                color: AppColors.success,
-                                shape: BoxShape.circle,
-                                boxShadow: [BoxShadow(color: AppColors.success.withAlpha(100), blurRadius: 20)],
-                              ),
+                              opacity: 0.15,
+                              blur: 20,
+                              borderRadius: 100,
+                              color: AppColors.success,
+                              border: Border.all(color: AppColors.success.withAlpha(100), width: 2),
                               child: const Icon(LucideIcons.phone, color: Colors.white, size: 36),
                             ).animate(onPlay: (c) => c.repeat(reverse: true)).shimmer(duration: 2.seconds),
                           ),
@@ -132,7 +143,8 @@ class IncomingCallDialog extends StatelessWidget {
               ],
             ),
           ),
-        ),
+        ],
+      ),
     );
   }
 }

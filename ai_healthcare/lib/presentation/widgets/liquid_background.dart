@@ -16,22 +16,22 @@ class LiquidBackground extends StatelessWidget {
       children: [
         // Top Left Blob
         Positioned(
-          top: -150, left: -100,
-          child: Container(width: 400, height: 400, decoration: const BoxDecoration(shape: BoxShape.circle, gradient: AppColors.primaryGradient))
-            .animate(onPlay: (c) => c.repeat(reverse: true)).scale(end: const Offset(1.1, 1.1), duration: 8.seconds, curve: Curves.easeInOut),
+          top: -100, left: -100,
+          child: Container(width: 500, height: 500, decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [AppColors.primary.withAlpha(200), AppColors.primary.withAlpha(0)])))
+            .animate(onPlay: (c) => c.repeat(reverse: true)).scale(end: const Offset(1.2, 1.2), duration: 10.seconds, curve: Curves.easeInOut),
         ),
         // Bottom Right Blob
         Positioned(
-          bottom: -100, right: -150,
-          child: Container(width: 450, height: 450, decoration: const BoxDecoration(shape: BoxShape.circle, gradient: AppColors.accentGradient))
-            .animate(onPlay: (c) => c.repeat(reverse: true)).slide(end: const Offset(-0.1, -0.1), duration: 7.seconds, curve: Curves.easeInOut),
+          bottom: -50, right: -50,
+          child: Container(width: 550, height: 550, decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [AppColors.accent.withAlpha(180), AppColors.accent.withAlpha(0)])))
+            .animate(onPlay: (c) => c.repeat(reverse: true)).slide(end: const Offset(-0.2, -0.2), duration: 9.seconds, curve: Curves.easeInOut),
         ),
         // Extreme Blur Layer to create liquid blending
         Positioned.fill(
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 100, sigmaY: 100),
+            filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
             child: Container(
-              color: (isDark ? AppColors.bgDark : AppColors.bgLight).withAlpha(isDark ? 160 : 180),
+              color: (isDark ? AppColors.bgDark : AppColors.bgLight).withAlpha(isDark ? 140 : 160),
             ),
           ),
         ),

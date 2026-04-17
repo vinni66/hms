@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/wellness_goal.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
@@ -210,11 +211,71 @@ class ApiService {
   }
 
   // ═══════════════════════════════════════
+  //  PHASE 3: MEDICATION
+  // ═══════════════════════════════════════
+  Future<Map<String, dynamic>> getMedicationSchedule() async {
+    return await _get('/medications/schedule');
+  }
+
+  Future<void> logMedicationDose(String scheduleId) async {
+    await _post('/medications/log', {'schedule_id': scheduleId});
+  }
+
+  Future<Map<String, dynamic>> createMedicationSchedule(Map<String, dynamic> data) async {
+    return await _post('/medications/schedule', data);
+  }
+
+  Future<Map<String, dynamic>> getMissedDoseAdvice(String medName, String context) async {
+    return await _post('/medications/missed-advice', {'med_name': medName, 'context': context});
+  }
+
+  // ═══════════════════════════════════════
   //  ADMIN
   // ═══════════════════════════════════════
   Future<Map<String, dynamic>> getAdminStats() async => await _get('/admin/stats');
   Future<List<dynamic>> getAdminUsers() async => await _get('/admin/users');
   Future<void> deleteUser(String id) async => await _delete('/admin/users/$id');
+
+  // ── Phase 5: Family Social Circle ──
+  Future<Map<String, dynamic>> sendFamilyRequest(String email) async {
+    return await _post('/family/request', {'email': email});
+  }
+
+  Future<List<dynamic>> getFamilyLinks() async {
+    return await _get('/family/links');
+  }
+
+  Future<Map<String, dynamic>> handleFamilyRequest(String requestId, String status) async {
+    return await _put('/family/handle-request', {'requestId': requestId, 'status': status});
+  }
+
+  Future<List<dynamic>> getFamilyMembersHealth() async {
+    return await _get('/family/members-health');
+  }
+
+  Future<Map<String, dynamic>> triggerSOS(String location) async {
+    return await _post('/family/sos', {'location': location});
+  }
+
+  // ── Pro Phase 7: Wellness ──
+  Future<List<WellnessGoal>> getWellnessGoals() async {
+    final res = await _get('/wellness/goals');
+    return (res as List).map((g) => WellnessGoal.fromJson(g)).toList();
+  }
+
+  Future<WellnessGoal> updateWellnessGoal(String type, double value, String unit) async {
+    final res = await _post('/wellness/goals', {
+      'type': type,
+      'value': value,
+      'unit': unit,
+    });
+    return WellnessGoal.fromJson(res);
+  }
+
+  Future<List<Map<String, dynamic>>> getDailyWellnessProgress([String? date]) async {
+    final res = await _get('/wellness/progress${date != null ? '?date=$date' : ''}');
+    return List<Map<String, dynamic>>.from(res);
+  }
 }
 
 class AuthException implements Exception {

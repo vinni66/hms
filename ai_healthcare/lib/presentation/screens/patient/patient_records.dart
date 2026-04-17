@@ -4,7 +4,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../../../core/colors.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../data/services/api_service.dart';
 import '../../widgets/liquid_background.dart';
 import '../../widgets/vitals_chart.dart';
@@ -24,6 +26,7 @@ class _PatientRecordsState extends State<PatientRecords> with SingleTickerProvid
   List _reports = [];
   bool _loading = true;
   bool _analyzing = false;
+  String _selectedMetricType = 'Heart Rate';
 
   @override
   void initState() {
@@ -111,9 +114,19 @@ class _PatientRecordsState extends State<PatientRecords> with SingleTickerProvid
                 _buildInsightButton(isDark),
                 const SizedBox(height: 16),
                 if (_metrics.isNotEmpty) ...[
-                  const Text('Heart Rate Trends', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    Text('$_selectedMetricType Trends', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    DropdownButton<String>(
+                      value: _metrics.any((m) => (m['metric_type'] ?? m['type']) == _selectedMetricType) 
+                        ? _selectedMetricType 
+                        : (_metrics.first['metric_type'] ?? _metrics.first['type']),
+                      underline: const SizedBox(),
+                      items: _metrics.map((m) => (m['metric_type'] ?? m['type']) as String).toSet().map((type) => DropdownMenuItem(value: type, child: Text(type))).toList(),
+                      onChanged: (val) => setState(() => _selectedMetricType = val!),
+                    ),
+                  ]),
                   const SizedBox(height: 12),
-                  VitalsChart(metrics: _metrics, type: 'Heart Rate', color: AppColors.primary),
+                  VitalsChart(metrics: _metrics, type: _selectedMetricType, color: AppColors.primary),
                   const SizedBox(height: 24),
                   const Text('Recent Logs', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
@@ -236,6 +249,15 @@ class _PatientRecordsState extends State<PatientRecords> with SingleTickerProvid
       final res = await _api.getMetricsAnalysis();
       if (mounted) Navigator.pop(context);
       
+      if (res['risk_level'] == 'High' || res['risk_level'] == 'Emergency') {
+        NotificationService().showNotification(
+          title: 'Critical Health Insight',
+          body: 'Low accuracy in vitals detected or high-risk finding identified. Please review.',
+          importance: Importance.max,
+          priority: Priority.high,
+        );
+      }
+
       showModalBottomSheet(context: context, backgroundColor: Colors.transparent, isScrollControlled: true, builder: (ctx) {
         final isDark = Theme.of(ctx).brightness == Brightness.dark;
         return Container(
@@ -249,6 +271,12 @@ class _PatientRecordsState extends State<PatientRecords> with SingleTickerProvid
             ]),
             const SizedBox(height: 20),
             Text(res['text'] ?? 'No analysis available.', style: TextStyle(fontSize: 15, height: 1.5, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
+            const SizedBox(height: 20),
+            Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppColors.error.withAlpha(10), borderRadius: BorderRadius.circular(12)), child: Row(children: [
+              const Icon(LucideIcons.alertTriangle, color: AppColors.error, size: 16),
+              const SizedBox(width: 8),
+              const Expanded(child: Text('Disclaimer: AI analysis is for informational purposes only. Always consult a certified physician for diagnosis.', style: TextStyle(fontSize: 10, color: AppColors.error, fontWeight: FontWeight.bold))),
+            ])),
             const SizedBox(height: 24),
             SizedBox(width: double.infinity, height: 50, child: ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),

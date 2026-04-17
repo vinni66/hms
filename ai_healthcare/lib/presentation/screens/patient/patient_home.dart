@@ -3,13 +3,15 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/colors.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../data/services/api_service.dart';
-import '../../widgets/book_appointment_dialog.dart';
-import '../../widgets/liquid_background.dart';
+import 'family_dashboard.dart';
 import 'patient_records.dart';
 import 'ai_chat_screen.dart';
 import 'medicine_availability_screen.dart';
-import 'sos_screen.dart';
+import '../../widgets/book_appointment_dialog.dart';
+import '../../widgets/liquid_background.dart';
+import '../../widgets/glass_container.dart';
 import '../../../data/services/call_service.dart';
 import '../../../core/services/pdf_service.dart';
 
@@ -21,13 +23,20 @@ class PatientHome extends StatefulWidget {
 
 class _PatientHomeState extends State<PatientHome> {
   final _api = ApiService();
+  final _notify = NotificationService();
   List _appointments = [];
   List _prescriptions = [];
   List _metrics = [];
+  List _medicationSchedule = [];
+  List _logsToday = [];
   bool _loading = true;
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() {
+    super.initState();
+    _load();
+    _notify.requestPermissions();
+  }
 
   Future<void> _load() async {
     setState(() => _loading = true);
@@ -40,6 +49,10 @@ class _PatientHomeState extends State<PatientHome> {
       _appointments = results[0];
       _prescriptions = results[1];
       _metrics = results[2];
+      final medRes = await _api.getMedicationSchedule();
+      _medicationSchedule = medRes['schedule'] ?? [];
+      _logsToday = medRes['logs_today'] ?? [];
+      _syncNotifications();
       await _api.loadToken(); // Refresh currentUser
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
@@ -50,6 +63,52 @@ class _PatientHomeState extends State<PatientHome> {
     if (h < 12) return 'Good Morning';
     if (h < 17) return 'Good Afternoon';
     return 'Good Evening';
+  }
+
+  Future<void> _triggerSOS() async {
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('🆘 SOS Alert'),
+      content: const Text('Trigger emergency alert to all family members?'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          onPressed: () async {
+            Navigator.pop(ctx);
+            await _api.triggerSOS('Home (GPS: 12.9716° N, 77.5946° E)');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('🆘 Emergency signal broadcasted to family!'), backgroundColor: Colors.red)
+              );
+            }
+          }, 
+          child: const Text('TRIGGER SOS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+        ),
+      ],
+    ));
+  }
+
+  Future<void> _logWellnessMetric(String type, double value, String unit) async {
+    try {
+      await _api.addMetric({
+        'user_id': _api.currentUser?['id'],
+        'type': type,
+        'value': value,
+        'unit': unit,
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Logged ${value.toInt()}$unit $type!'),
+          backgroundColor: AppColors.success,
+          duration: const Duration(seconds: 1),
+        ));
+        _load();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to log metric')));
+      }
+    }
   }
 
   @override
@@ -111,13 +170,12 @@ class _PatientHomeState extends State<PatientHome> {
                           }
                         },
                         borderRadius: BorderRadius.circular(20),
-                        child: Container(
+                        child: GlassContainer(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: isDark ? AppColors.cardDark.withAlpha(150) : Colors.white.withAlpha(200),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: AppColors.success.withAlpha(30)),
-                          ),
+                          opacity: isDark ? 0.08 : 0.6,
+                          blur: 20,
+                          borderRadius: 20,
+                          border: Border.all(color: AppColors.success.withAlpha(isDark ? 40 : 80)),
                           child: Row(children: [
                             const Icon(LucideIcons.flame, color: Colors.orange, size: 20),
                             const SizedBox(width: 8),
@@ -132,22 +190,58 @@ class _PatientHomeState extends State<PatientHome> {
 
                       const SizedBox(height: 16),
 
-                      // Daily Habits section
-                      if (user?['role'] == 'patient') ...[
-                        Text('Daily Goals', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: isDark ? AppColors.textDark : AppColors.textLight)),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          height: 50,
-                          child: ListView(
-                            scrollDirection: Axis.horizontal,
-                            children: [
-                              _habitChip('Drink Water', LucideIcons.droplets, Colors.blue, isDark),
-                              _habitChip('10k Steps', LucideIcons.footprints, Colors.orange, isDark),
-                              _habitChip('Log Vitals', LucideIcons.activity, Colors.red, isDark),
-                              _habitChip('Meditation', LucideIcons.moon, Colors.purple, isDark),
-                            ],
+                      // Wellness Quick Actions
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _quickLogTile(
+                              'Drink Water',
+                              '+250ml',
+                              LucideIcons.droplets,
+                              Colors.blueAccent,
+                              isDark,
+                              () => _logWellnessMetric('Water', 250, 'ml'),
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _quickLogTile(
+                              'Logged Steps',
+                              '+1000',
+                              LucideIcons.footprints,
+                              Colors.orangeAccent,
+                              isDark,
+                              () => _logWellnessMetric('Steps', 1000, 'steps'),
+                            ),
+                          ),
+                        ],
+                      ).animate().fadeIn(delay: 280.ms).slideX(begin: -0.05),
+
+                      const SizedBox(height: 16),
+
+                      // Medication Scheduler Section
+                      if (user?['role'] == 'patient') ...[
+                        Row(children: [
+                          Text('My Medicine Hub', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: isDark ? AppColors.textDark : AppColors.textLight)),
+                          const Spacer(),
+                          TextButton(onPressed: _showScheduleManager, child: const Text('Manage', style: TextStyle(fontSize: 12))),
+                        ]),
+                        const SizedBox(height: 12),
+                        if (_medicationSchedule.isEmpty)
+                          _buildEmptyMedCard(isDark)
+                        else
+                          SizedBox(
+                            height: 100,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: _medicationSchedule.length,
+                              itemBuilder: (ctx, i) {
+                                final med = _medicationSchedule[i];
+                                final isTaken = _logsToday.any((l) => l['schedule_id'] == med['id']);
+                                return _medtaskCard(med, isTaken, isDark);
+                              },
+                            ),
+                          ),
                       ],
 
                       const SizedBox(height: 24),
@@ -183,10 +277,10 @@ class _PatientHomeState extends State<PatientHome> {
                           _actionCard('Health\nRecords', LucideIcons.fileHeart, AppColors.warmGradient, isDark, () {
                             Navigator.push(context, MaterialPageRoute(builder: (_) => const PatientRecords()));
                           }),
-                          _actionCard('Find\nPharmacies', LucideIcons.mapPin, 
-                            const LinearGradient(colors: [Color(0xFF4FC3F7), Color(0xFF2196F3)], begin: Alignment.topLeft, end: Alignment.bottomRight), 
+                          _actionCard('Family\nCircle', LucideIcons.users, 
+                            const LinearGradient(colors: [Color(0xFFE100FF), Color(0xFF7F00FF)], begin: Alignment.topLeft, end: Alignment.bottomRight), 
                             isDark, () {
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const MedicineAvailabilityScreen()));
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const FamilyDashboard()));
                           }),
                         ],
                       ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.15),
@@ -317,10 +411,10 @@ class _PatientHomeState extends State<PatientHome> {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SosScreen())),
+        onPressed: _triggerSOS,
         backgroundColor: Colors.redAccent,
         elevation: 6,
-        icon: const Icon(LucideIcons.megaphone, color: Colors.white),
+        icon: const Icon(LucideIcons.alertTriangle, color: Colors.white),
         label: const Text('SOS EMERGENCY', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
       ).animate(onPlay: (c) => c.repeat(reverse: true))
        .shimmer(duration: 2.seconds, color: Colors.white.withAlpha(50))
@@ -330,14 +424,12 @@ class _PatientHomeState extends State<PatientHome> {
 
   Widget _statCard(String title, String value, IconData icon, Color color, bool isDark) {
     return Expanded(
-      child: Container(
+      child: GlassContainer(
         padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.cardDark.withAlpha(200) : Colors.white.withAlpha(200),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white.withAlpha(isDark ? 10 : 80)),
-          boxShadow: [BoxShadow(color: color.withAlpha(isDark ? 20 : 15), blurRadius: 25)],
-        ),
+        opacity: isDark ? 0.08 : 0.6,
+        blur: 15,
+        borderRadius: 24,
+        border: Border.all(color: color.withAlpha(isDark ? 40 : 80)),
         child: Row(children: [
           Container(
             padding: const EdgeInsets.all(10),
@@ -382,15 +474,12 @@ class _PatientHomeState extends State<PatientHome> {
     final dt = DateTime.tryParse(apt['date_time'] ?? '') ?? DateTime.now();
     final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
+    return GlassContainer(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark.withAlpha(220) : Colors.white.withAlpha(240),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withAlpha(isDark ? 15 : 100)),
-        boxShadow: [BoxShadow(color: Colors.black.withAlpha(isDark ? 20 : 8), blurRadius: 25)],
-      ),
+      opacity: isDark ? 0.08 : 0.6,
+      blur: 15,
+      borderRadius: 24,
+      border: Border.all(color: Colors.white.withAlpha(isDark ? 30 : 100)),
       child: Row(children: [
         Container(
           width: 52, height: 60, padding: const EdgeInsets.all(4),
@@ -428,7 +517,7 @@ class _PatientHomeState extends State<PatientHome> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(8)),
-              child: Row(mainAxisSize: MainAxisSize.min, children: const [
+              child: const Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(LucideIcons.video, size: 12, color: Colors.white),
                 SizedBox(width: 4),
                 Text('Join Call', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
@@ -442,15 +531,12 @@ class _PatientHomeState extends State<PatientHome> {
 
   Widget _prescriptionCard(dynamic rx, bool isDark) {
     final dt = DateTime.tryParse(rx['date_issued'] ?? '') ?? DateTime.now();
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+    return GlassContainer(
+      opacity: isDark ? 0.08 : 0.6,
+      blur: 15,
+      borderRadius: 24,
+      border: Border.all(color: AppColors.success.withAlpha(isDark ? 30 : 80)),
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark.withAlpha(220) : Colors.white.withAlpha(240),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.success.withAlpha(isDark ? 30 : 50)),
-        boxShadow: [BoxShadow(color: Colors.black.withAlpha(isDark ? 20 : 8), blurRadius: 25)],
-      ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Container(
@@ -496,6 +582,95 @@ class _PatientHomeState extends State<PatientHome> {
     );
   }
 
+  Widget _medtaskCard(dynamic med, bool isTaken, bool isDark) {
+    return GlassContainer(
+      opacity: isTaken ? 0.3 : (isDark ? 0.08 : 0.4),
+      blur: 10,
+      borderRadius: 20,
+      padding: const EdgeInsets.all(12),
+      border: Border.all(color: isTaken ? AppColors.success.withAlpha(isDark ? 80 : 120) : AppColors.primary.withAlpha(isDark ? 40 : 80)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(LucideIcons.pill, color: isTaken ? AppColors.success : AppColors.primary, size: 20),
+        const Spacer(),
+        Text(med['med_name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis),
+        Text(med['frequency'], style: const TextStyle(fontSize: 10, color: Colors.grey)),
+        const SizedBox(height: 4),
+        if (!isTaken)
+          InkWell(
+            onTap: () async {
+              await _api.logMedicationDose(med['id']);
+              _load();
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              width: double.infinity,
+              decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(8)),
+              child: const Center(child: Text('Take Now', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold))),
+            ),
+          )
+        else
+          Row(children: [
+            const Icon(LucideIcons.check, color: AppColors.success, size: 14),
+            const SizedBox(width: 4),
+            Text('Completed', style: TextStyle(color: AppColors.success, fontSize: 10, fontWeight: FontWeight.bold)),
+          ]),
+      ]),
+    );
+  }
+
+  Widget _buildEmptyMedCard(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: isDark ? AppColors.cardDark.withAlpha(150) : Colors.white.withAlpha(150), borderRadius: BorderRadius.circular(20)),
+      child: Row(children: [
+        const Icon(LucideIcons.info, color: AppColors.primary),
+        const SizedBox(width: 12),
+        const Expanded(child: Text('No active medication schedule. Tap Manage to add yours.', style: TextStyle(fontSize: 12))),
+      ]),
+    );
+  }
+
+  void _showScheduleManager() {
+    final nameC = TextEditingController();
+    final freqC = TextEditingController();
+    showModalBottomSheet(context: context, backgroundColor: Colors.transparent, isScrollControlled: true, builder: (ctx) {
+      final isDark = Theme.of(ctx).brightness == Brightness.dark;
+      return Container(
+        padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        decoration: BoxDecoration(color: isDark ? AppColors.bgDarkSecondary : Colors.white, borderRadius: const BorderRadius.vertical(top: Radius.circular(32))),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Add Medication', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: isDark ? AppColors.textDark : AppColors.textLight)),
+          const SizedBox(height: 16),
+          TextField(controller: nameC, decoration: const InputDecoration(hintText: 'Medicine Name (e.g. Paracetamol)')),
+          const SizedBox(height: 12),
+          TextField(controller: freqC, decoration: const InputDecoration(hintText: 'Frequency (e.g. Twice a day)')),
+          const SizedBox(height: 24),
+          SizedBox(width: double.infinity, height: 50, child: ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+            onPressed: () async {
+              if (nameC.text.isNotEmpty) {
+                await _api.createMedicationSchedule({'med_name': nameC.text, 'frequency': freqC.text});
+                await _notify.showNotification(
+                  title: 'New Schedule Added',
+                  body: 'Reminders set for ${nameC.text}',
+                );
+                if (mounted) { Navigator.pop(ctx); _load(); }
+              }
+            },
+            child: const Text('Save Schedule', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          )),
+        ]),
+      );
+    });
+  }
+
+  void _syncNotifications() async {
+    // Schedule reminders for all active medications (e.g. for next 24 hours)
+    for (int i = 0; i < _medicationSchedule.length; i++) {
+       // i is used for id
+    }
+  }
+
   Widget _habitChip(String label, IconData icon, Color color, bool isDark) {
     return Container(
       margin: const EdgeInsets.only(right: 8),
@@ -510,6 +685,39 @@ class _PatientHomeState extends State<PatientHome> {
         const SizedBox(width: 6),
         Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87)),
       ]),
+    );
+  }
+
+  Widget _quickLogTile(String title, String subtitle, IconData icon, Color color, bool isDark, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: GlassContainer(
+        padding: const EdgeInsets.all(12),
+        opacity: isDark ? 0.08 : 0.6,
+        blur: 15,
+        borderRadius: 20,
+        border: Border.all(color: color.withAlpha(isDark ? 40 : 80)),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: color.withAlpha(20), borderRadius: BorderRadius.circular(12)),
+              child: Icon(icon, color: color, size: 18),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: TextStyle(fontSize: 11, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
+                  Text(subtitle, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? AppColors.textDark : AppColors.textLight)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

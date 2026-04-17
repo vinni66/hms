@@ -229,6 +229,42 @@ Respond ONLY with the JSON object.`;
       };
     }
   }
+
+  async extractLabValues(text) {
+    const prompt = `You are a medical data extraction engine. Analyze the following OCR text from a medical lab report:
+
+---
+${text}
+---
+
+Extract all numerical lab results (vitals/biomarkers) found.
+For each result, provide: 
+1. The type (e.g., Blood Glucose, Hemoglobin, Cholesterol)
+2. The numerical value
+3. The unit (e.g., mg/dL, g/dL)
+
+Format as a JSON array of objects: [{"type": "...", "value": 123, "unit": "..."}]
+If no numerical results are found, return an empty array [].
+Respond ONLY with the JSON.`;
+
+    const response = await this.chat([], prompt);
+    try {
+      const jsonStr = response.text.substring(response.text.indexOf('['), response.text.lastIndexOf(']') + 1);
+      return JSON.parse(jsonStr);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async suggestMissedDoseAction(medName, context) {
+    const prompt = `A patient missed their dose of ${medName}. 
+Context: ${context}
+
+Please provide advice on what they should do next (e.g., take it now, skip it, contact doctor).
+Keep it safe and include a medical disclaimer.`;
+
+    return this.chat([], prompt);
+  }
 }
 
 module.exports = new AiService();
