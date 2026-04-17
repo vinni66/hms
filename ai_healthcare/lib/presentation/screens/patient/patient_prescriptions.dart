@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/colors.dart';
+import '../../../core/services/pdf_service.dart';
 import '../../../data/services/api_service.dart';
 import '../../widgets/liquid_background.dart';
 
@@ -35,6 +36,19 @@ class _PatientPrescriptionsState extends State<PatientPrescriptions> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => _PharmacyBottomSheet(medicine: medicine, api: _api),
     );
+  }
+
+  Future<void> _downloadPdf(dynamic rx) async {
+    try {
+      final patient = _api.currentUser ?? {};
+      await PdfService.generatePrescriptionPdf(rx, patient);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to generate PDF: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
   }
 
   @override
@@ -104,7 +118,23 @@ class _PatientPrescriptionsState extends State<PatientPrescriptions> {
             Text(rx['diagnosis'] ?? 'Diagnosis', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: isDark ? AppColors.textDark : AppColors.textLight)),
             Text('Dr. ${rx['doctor_name'] ?? 'Unknown'}', style: TextStyle(fontSize: 13, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
           ])),
-          Text(DateFormat('MMM dd').format(dt), style: TextStyle(fontSize: 12, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Text(DateFormat('MMM dd').format(dt), style: TextStyle(fontSize: 12, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: () => _downloadPdf(rx),
+              icon: const Icon(Icons.download_rounded, size: 16),
+              label: const Text('PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                minimumSize: Size.zero,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
+              ),
+            ),
+          ]),
         ]),
 
         if (meds.isNotEmpty) ...[

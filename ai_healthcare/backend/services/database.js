@@ -167,6 +167,16 @@ class DatabaseService {
           await this._seedPharmacies();
         }
       } catch(e) {}
+      
+      // Pro Phase 1: Add new columns if they don't exist
+      try {
+        await this._run('ALTER TABLE users ADD COLUMN IF NOT EXISTS health_streak INTEGER DEFAULT 0');
+        await this._run('ALTER TABLE users ADD COLUMN IF NOT EXISTS last_checkin TIMESTAMP WITH TIME ZONE');
+        await this._run('ALTER TABLE appointments ADD COLUMN IF NOT EXISTS risk_level TEXT DEFAULT \'normal\'');
+        await this._run('ALTER TABLE appointments ADD COLUMN IF NOT EXISTS risk_reason TEXT DEFAULT \'\'');
+      } catch(e) {
+        console.warn('⚠️ Column Update Warning:', e.message);
+      }
 
       console.log('✅ Supabase Database initialized with tables & seed data');
     } catch (err) {
@@ -403,6 +413,30 @@ class DatabaseService {
       totalPrescriptions: parseInt((await this._get('SELECT COUNT(*) as c FROM prescriptions'))?.c || '0'),
       totalReports: parseInt((await this._get('SELECT COUNT(*) as c FROM scan_reports'))?.c || '0'),
     };
+  }
+
+  // ── Pro Phase 1: Risk & Streaks ──
+  async updateAppointmentRisk(id, level, reason) {
+    await this._run('UPDATE appointments SET risk_level=$1, risk_reason=$2 WHERE id=$3', [level, reason, id]);
+  }
+
+  async updateUserStreak(userId) {
+    const user = await this.getUser(userId);
+    if (!user) return;
+    
+    const now = new Date();
+    const lastCheckin = user.last_checkin ? new Date(user.last_checkin) : null;
+    
+    let newStreak = (user.health_streak || 0) + 1;
+    
+    if (lastCheckin) {
+      const diffDays = Math.floor((now - lastCheckin) / (1000 * 60 * 60 * 24));
+      if (diffDays === 0) return; // Already checked in today
+      if (diffDays > 1) newStreak = 1; // Streak broken
+    }
+    
+    await this._run('UPDATE users SET health_streak=$1, last_checkin=CURRENT_TIMESTAMP WHERE id=$2', [newStreak, userId]);
+    return newStreak;
   }
 }
 

@@ -7,7 +7,7 @@ class ApiService {
   factory ApiService() => _instance;
   ApiService._internal();
 
-  String _baseUrl = 'http://192.168.29.233:3000/api';
+  String _baseUrl = 'https://hms-blue-sigma.vercel.app/api';
   String? _token;
   Map<String, dynamic>? _currentUser;
 
@@ -144,6 +144,7 @@ class ApiService {
   Future<List<dynamic>> getMetrics() async => await _get('/metrics');
   Future<Map<String, dynamic>> addMetric(Map<String, dynamic> data) async => await _post('/metrics', data);
   Future<void> deleteMetric(String id) async => await _delete('/metrics/$id');
+  Future<Map<String, dynamic>> getMetricsAnalysis() async => await _post('/metrics/analyze/trends', {});
 
   // ═══════════════════════════════════════
   //  REPORTS
@@ -195,6 +196,18 @@ class ApiService {
   //  RECEPTIONIST
   // ═══════════════════════════════════════
   Future<List<dynamic>> getPatients() async => await _get('/receptionist/patients');
+
+  // ═══════════════════════════════════════
+  //  PRO FEATURES
+  // ═══════════════════════════════════════
+  Future<Map<String, dynamic>> suggestTreatment(String patientId, String diagnosis) async {
+    return await _post('/doctor/suggest-treatment', {'patient_id': patientId, 'diagnosis': diagnosis});
+  }
+
+  Future<int> checkIn() async {
+    final res = await _post('/patient/check-in', {});
+    return res['streak'] ?? 0;
+  }
 
   // ═══════════════════════════════════════
   //  ADMIN

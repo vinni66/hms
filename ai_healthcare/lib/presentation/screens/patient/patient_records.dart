@@ -7,6 +7,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/colors.dart';
 import '../../../data/services/api_service.dart';
 import '../../widgets/liquid_background.dart';
+import '../../widgets/vitals_chart.dart';
+import '../../../data/services/ocr_service.dart';
 
 class PatientRecords extends StatefulWidget {
   const PatientRecords({super.key});
@@ -76,7 +78,7 @@ class _PatientRecordsState extends State<PatientRecords> with SingleTickerProvid
           child: _loading || _analyzing
             ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
                 const CircularProgressIndicator(color: AppColors.primary),
-                if (_analyzing) const Padding(padding: EdgeInsets.only(top: 16), child: Text('Smart Scanner is analyzing...')),
+                if (_analyzing) const Padding(padding: EdgeInsets.only(top: 16), child: Text('Rakshak AI is analyzing report...')),
               ]))
             : TabBarView(
                 controller: _tabC,
@@ -96,16 +98,34 @@ class _PatientRecordsState extends State<PatientRecords> with SingleTickerProvid
   }
 
   Widget _buildVitalsFeed(bool isDark) {
-    if (_metrics.isEmpty) {
-      return Center(child: Text('No vital metrics recorded yet.', style: TextStyle(color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)));
-    }
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView.builder(
-        padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 80, 24, 100),
-        itemCount: _metrics.length,
+        padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 100, 24, 100),
+        itemCount: _metrics.isEmpty ? 1 : _metrics.length + 1, 
         itemBuilder: (ctx, i) {
-          final m = _metrics[i];
+          if (i == 0) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildInsightButton(isDark),
+                const SizedBox(height: 16),
+                if (_metrics.isNotEmpty) ...[
+                  const Text('Heart Rate Trends', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  VitalsChart(metrics: _metrics, type: 'Heart Rate', color: AppColors.primary),
+                  const SizedBox(height: 24),
+                  const Text('Recent Logs', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                ] else 
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 40),
+                    child: Center(child: Text('No vital metrics recorded yet.', style: TextStyle(color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary))),
+                  ),
+              ],
+            );
+          }
+          final m = _metrics[i - 1];
           final dt = DateTime.tryParse(m['date_recorded'] ?? '') ?? DateTime.now();
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
@@ -143,14 +163,14 @@ class _PatientRecordsState extends State<PatientRecords> with SingleTickerProvid
           const SizedBox(height: 12),
           Text('No reports scanned yet.', style: TextStyle(color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
           const SizedBox(height: 8),
-          Text('Use the Smart Scanner in the Home Tab.', style: TextStyle(color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary, fontSize: 12)),
+          Text('Upload medical reports for AI analysis.', style: TextStyle(color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary, fontSize: 12)),
         ])
       );
     }
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView.builder(
-        padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 80, 24, 100),
+        padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 100, 24, 100),
         itemCount: _reports.length,
         itemBuilder: (ctx, i) {
           final r = _reports[i];
@@ -185,6 +205,66 @@ class _PatientRecordsState extends State<PatientRecords> with SingleTickerProvid
     );
   }
 
+  Widget _buildInsightButton(bool isDark) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: AppColors.primaryGradient,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [BoxShadow(color: AppColors.primary.withAlpha(80), blurRadius: 20, offset: const Offset(0, 8))],
+      ),
+      child: Row(children: [
+        const Icon(LucideIcons.sparkles, color: Colors.white, size: 28),
+        const SizedBox(width: 16),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Rakshak AI Insight', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+          Text('Analyze your health trends', style: TextStyle(color: Colors.white.withAlpha(200), fontSize: 12)),
+        ])),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: AppColors.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          onPressed: _showAIInsight,
+          child: const Text('Analyze'),
+        ),
+      ]),
+    );
+  }
+
+  void _showAIInsight() async {
+    showDialog(context: context, builder: (ctx) => const Center(child: CircularProgressIndicator(color: Colors.white)));
+    try {
+      final res = await _api.getMetricsAnalysis();
+      if (mounted) Navigator.pop(context);
+      
+      showModalBottomSheet(context: context, backgroundColor: Colors.transparent, isScrollControlled: true, builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(color: isDark ? AppColors.bgDarkSecondary : Colors.white, borderRadius: const BorderRadius.vertical(top: Radius.circular(32))),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              const Icon(LucideIcons.sparkles, color: AppColors.success),
+              const SizedBox(width: 12),
+              Text('Health Analysis', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: isDark ? AppColors.textDark : AppColors.textLight)),
+            ]),
+            const SizedBox(height: 20),
+            Text(res['text'] ?? 'No analysis available.', style: TextStyle(fontSize: 15, height: 1.5, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
+            const SizedBox(height: 24),
+            SizedBox(width: double.infinity, height: 50, child: ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Done', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            )),
+            const SizedBox(height: 12),
+          ]),
+        );
+      });
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
   void _addVital(BuildContext context) {
     final typeC = TextEditingController();
     final valC = TextEditingController();
@@ -200,9 +280,9 @@ class _PatientRecordsState extends State<PatientRecords> with SingleTickerProvid
           TextField(controller: typeC, decoration: const InputDecoration(hintText: 'Type (e.g. Heart Rate, Weight)')),
           const SizedBox(height: 12),
           Row(children: [
-            Expanded(child: TextField(controller: valC, keyboardType: TextInputType.number, decoration: const InputDecoration(hintText: 'Value (e.g. 72)'))),
+            Expanded(child: TextField(controller: valC, keyboardType: TextInputType.number, decoration: const InputDecoration(hintText: 'Value'))),
             const SizedBox(width: 8),
-            Expanded(child: TextField(controller: unitC, decoration: const InputDecoration(hintText: 'Unit (e.g. bpm, kg)'))),
+            Expanded(child: TextField(controller: unitC, decoration: const InputDecoration(hintText: 'Unit'))),
           ]),
           const SizedBox(height: 24),
           SizedBox(width: double.infinity, height: 50, child: ElevatedButton(
@@ -229,17 +309,22 @@ class _PatientRecordsState extends State<PatientRecords> with SingleTickerProvid
       final bytes = await img.readAsBytes();
       final base64Str = base64Encode(bytes);
       
-      // 1. Create a blank report record
+      // 1. Extract text locally using OCR
+      String ocrText = '';
+      try { ocrText = await OcrService().extractTextFromImage(img.path); } catch (_) {}
+
+      // 2. Create the record
       final report = await _api.createReport({
-        'title': 'Scan Data - ${DateFormat('yyyy-MM-dd').format(DateTime.now())}',
-        'file_url': 'N/A' // Simulating external storage
+        'title': 'Scan - ${DateFormat('MMM dd, yyyy').format(DateTime.now())}',
+        'file_url': 'Local Scan'
       });
       
-      // 2. Instruct Rakshak AI to analyze via the newly created endpoint
-      await _api.analyzeReport(report['id'], imageBase64: base64Str);
+      // 3. Analyze with AI (sending both image and extracted text)
+      await _api.analyzeReport(report['id'], text: ocrText, imageBase64: base64Str);
       
       if (mounted) _load();
     } catch (_) {
+    } finally {
       if (mounted) setState(() => _analyzing = false);
     }
   }

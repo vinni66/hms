@@ -144,7 +144,12 @@ class _DoctorHomeState extends State<_DoctorHome> {
           child: const Icon(LucideIcons.user, color: AppColors.doctorColor, size: 22)),
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(apt['patient_name'] ?? '', style: TextStyle(fontWeight: FontWeight.w600, color: isDark ? AppColors.textDark : AppColors.textLight)),
+          Row(children: [
+            Text(apt['patient_name'] ?? '', style: TextStyle(fontWeight: FontWeight.w600, color: isDark ? AppColors.textDark : AppColors.textLight)),
+            const SizedBox(width: 8),
+            if (apt['risk_level'] != null && apt['risk_level'] != 'normal')
+              _riskBadge(apt['risk_level']),
+          ]),
           Text(DateFormat('MMM dd, hh:mm a').format(dt), style: TextStyle(fontSize: 12, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
         ])),
         // Video Call button
@@ -168,6 +173,19 @@ class _DoctorHomeState extends State<_DoctorHome> {
         ),
       ]),
     ).animate().fadeIn(delay: (i * 80).ms);
+  }
+
+  Widget _riskBadge(String level) {
+    final color = level == 'urgent' ? AppColors.error : AppColors.warning;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(color: color.withAlpha(30), borderRadius: BorderRadius.circular(6), border: Border.all(color: color.withAlpha(50))),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(level == 'urgent' ? LucideIcons.alertTriangle : LucideIcons.info, size: 10, color: color),
+        const SizedBox(width: 4),
+        Text(level.toUpperCase(), style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.bold)),
+      ]),
+    ).animate(onPlay: (c) => c.repeat(reverse: true)).shimmer(duration: 2.seconds);
   }
 
   void _writePrescription(dynamic apt) {
@@ -196,7 +214,39 @@ class _DoctorHomeState extends State<_DoctorHome> {
           Text('Write Prescription', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: isDark ? AppColors.textDark : AppColors.textLight)),
           Text('Patient: ${apt['patient_name']}', style: TextStyle(color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
           const SizedBox(height: 16),
-          TextField(controller: diagC, decoration: const InputDecoration(hintText: 'Diagnosis', prefixIcon: Icon(LucideIcons.fileSearch, size: 20))),
+          Row(children: [
+            Expanded(child: TextField(controller: diagC, decoration: const InputDecoration(hintText: 'Diagnosis', prefixIcon: Icon(LucideIcons.fileSearch, size: 20)))),
+            const SizedBox(width: 10),
+            IconButton(
+              icon: const Icon(LucideIcons.sparkles, color: AppColors.primary),
+              tooltip: 'AI Co-Pilot Suggestions',
+              onPressed: () async {
+                if (diagC.text.isEmpty) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Please enter a diagnosis first')));
+                  return;
+                }
+                // Show loading
+                showDialog(context: ctx, builder: (_) => const Center(child: CircularProgressIndicator()));
+                try {
+                  final suggestions = await widget.api.suggestTreatment(apt['patient_id'], diagC.text);
+                  Navigator.pop(ctx); // pop loading
+                  
+                  if (suggestions['medications'] != null) {
+                    setS(() {
+                      meds = List<Map<String, String>>.from((suggestions['medications'] as List).map((m) => {
+                        'name': m['name'].toString(),
+                        'dosage': m['dosage'].toString(),
+                      }));
+                      instrC.text = suggestions['instructions'] ?? '';
+                    });
+                  }
+                } catch (e) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('AI Error: $e')));
+                }
+              },
+            ),
+          ]),
           const SizedBox(height: 12),
           Row(children: [
             Expanded(child: TextField(controller: medNameC, decoration: const InputDecoration(hintText: 'Medicine'))),

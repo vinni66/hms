@@ -176,6 +176,59 @@ Include a risk tag: [RISK:NORMAL], [RISK:CAUTION], or [RISK:URGENT].`;
 
     return this.chat([], prompt);
   }
+
+  async analyzeTrends(metrics) {
+    const prompt = `You are a medical health guardian. Here are the patient's recent health metrics:
+${JSON.stringify(metrics, null, 2)}
+
+Please analyze these records and provide:
+1. Significant trends (e.g. rising heart rate, fluctuating weight).
+2. Actionable wellness advice based on these patterns.
+3. A summary of overall physiological stability.
+4. Risk assessment: [RISK:NORMAL], [RISK:CAUTION], or [RISK:URGENT].
+
+Keep it professional, encouraging, and clear.`;
+
+    return this.chat([], prompt);
+  }
+
+  async suggestTreatment(patientContext, diagnosis) {
+    const prompt = `You are an AI Clinical Co-Pilot for doctors. A patient has been diagnosed with: ${diagnosis}.
+
+PATIENT CONTEXT:
+${patientContext}
+
+Based on this diagnosis and patient history, please suggest a detailed treatment plan:
+1. Recommended medications (include generic names and typical dosages).
+2. Important instructions or lifestyle changes.
+3. Precautions or potential side effects to watch for.
+4. Follow-up recommendations.
+
+IMPORTANT: This is a suggestion to assist the doctor. The doctor will make the final decision.
+Format the output as a clean, structured JSON object: 
+{
+  "medications": [{"name": "...", "dosage": "..."}],
+  "instructions": "...",
+  "precautions": "...",
+  "follow_up": "..."
+}
+
+Respond ONLY with the JSON object.`;
+
+    const response = await this.chat([], prompt);
+    try {
+      // Try to parse JSON from AI response
+      const jsonStr = response.text.substring(response.text.indexOf('{'), response.text.lastIndexOf('}') + 1);
+      return JSON.parse(jsonStr);
+    } catch (e) {
+      // Fallback
+      return { 
+        medications: [], 
+        instructions: response.text, 
+        error: "Failed to parse suggestions" 
+      };
+    }
+  }
 }
 
 module.exports = new AiService();

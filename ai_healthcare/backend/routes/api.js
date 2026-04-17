@@ -166,6 +166,17 @@ router.post('/appointments', mw, async (req, res) => {
       location: location || '',
       notes: notes || '',
     });
+
+    // AI Triage: Analyze notes to determine risk level
+    if (notes) {
+      try {
+        const triage = await ollama.analyzeSymptoms(notes);
+        await db.updateAppointmentRisk(apt.id, triage.risk, triage.text);
+      } catch (e) {
+        console.warn('AI Triage failed:', e.message);
+      }
+    }
+
     res.status(201).json(apt);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -251,6 +262,19 @@ router.post('/metrics', mw, async (req, res) => {
 router.delete('/metrics/:id', mw, async (req, res) => {
   await db.deleteMetric(req.params.id);
   res.json({ success: true });
+});
+
+router.post('/metrics/analyze/trends', mw, async (req, res) => {
+  try {
+    const metrics = await db.getMetrics(req.user.id);
+    if (!metrics || metrics.length === 0) return res.status(400).json({ error: 'No metrics found for analysis' });
+    
+    // Take only last 10 for analysis
+    const analysis = await ollama.analyzeTrends(metrics.slice(0, 10));
+    res.json(analysis);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ═══════════════════════════════════════
@@ -410,6 +434,41 @@ router.get('/admin/prescriptions', mw, auth.roleMiddleware('admin'), async (req,
 // ═══════════════════════════════════════
 router.get('/receptionist/patients', mw, auth.roleMiddleware('receptionist', 'admin'), async (req, res) => {
   res.json(await db.getPatients());
+});
+
+// ═══════════════════════════════════════
+//  PRO FEATURES (Protected)
+// ═══════════════════════════════════════
+
+router.post('/doctor/suggest-treatment', mw, auth.roleMiddleware('doctor'), async (req, res) => {
+  try {
+    const { patient_id, diagnosis } = req.body;
+    if (!patient_id || !diagnosis) return res.status(400).json({ error: 'patient_id and diagnosis required' });
+
+    // Gather context
+    const patientData = await db.getUser(patient_id);
+    const metrics = await db.getMetrics(patient_id);
+    const prescriptions = await db.getPrescriptions(patient_id, 'doctor');
+    
+    let context = `Name: ${patientData.name}, Age: ${patientData.age}, Blood: ${patientData.blood_group}\n`;
+    context += `Allergies: ${patientData.allergies || 'None'}\n`;
+    context += `Recent Metrics: ${JSON.stringify(metrics.slice(0, 5))}\n`;
+    context += `Past Prescriptions: ${JSON.stringify(prescriptions.slice(0, 3))}\n`;
+
+    const suggestions = await ollama.suggestTreatment(context, diagnosis);
+    res.json(suggestions);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/patient/check-in', mw, async (req, res) => {
+  try {
+    const newStreak = await db.updateUserStreak(req.user.id);
+    res.json({ streak: newStreak || 0 });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

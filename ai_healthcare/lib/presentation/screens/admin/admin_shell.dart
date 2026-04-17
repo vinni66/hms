@@ -94,6 +94,40 @@ class _AdminShellState extends State<AdminShell> {
             ]).animate().fadeIn(delay: 300.ms),
 
             const SizedBox(height: 28),
+            
+            // AI System Insights
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.cardDark.withAlpha(200) : Colors.white.withAlpha(200),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: AppColors.adminColor.withAlpha(30)),
+                boxShadow: [BoxShadow(color: AppColors.adminColor.withAlpha(10), blurRadius: 20)],
+              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  const Icon(LucideIcons.sparkles, color: AppColors.adminColor, size: 20),
+                  const SizedBox(width: 10),
+                  Text('System AI Insights', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? AppColors.textDark : AppColors.textLight)),
+                ]),
+                const SizedBox(height: 16),
+                Text('Patient Risk Distribution', style: TextStyle(fontSize: 13, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
+                const SizedBox(height: 12),
+                Row(children: [
+                   _riskSegment('Urgent', 0.15, AppColors.error),
+                   const SizedBox(width: 4),
+                   _riskSegment('Caution', 0.35, AppColors.warning),
+                   const SizedBox(width: 4),
+                   _riskSegment('Normal', 0.50, AppColors.success),
+                ]),
+                const SizedBox(height: 20),
+                Text('Hospital Efficiency: 94%', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? AppColors.textDark : AppColors.textLight)),
+                const SizedBox(height: 4),
+                ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(value: 0.94, minHeight: 6, backgroundColor: Colors.grey.withAlpha(30), color: AppColors.success)),
+              ]),
+            ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1),
+
+            const SizedBox(height: 28),
             Text('Recent Users', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: isDark ? AppColors.textDark : AppColors.textLight)),
             const SizedBox(height: 12),
             ..._users.take(5).toList().asMap().entries.map((e) {
@@ -148,6 +182,14 @@ class _AdminShellState extends State<AdminShell> {
         ]),
       ]),
     ));
+  }
+
+  Widget _riskSegment(String label, double flex, Color color) {
+    return Expanded(flex: (flex * 100).toInt(), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Container(height: 8, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4))),
+      const SizedBox(height: 4),
+      Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color)),
+    ]));
   }
 
   Widget _buildUsers(bool isDark) {

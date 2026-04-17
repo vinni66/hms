@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'core/theme.dart';
 import 'data/services/api_service.dart';
 import 'data/services/call_service.dart';
@@ -53,7 +54,7 @@ class _SplashGateState extends State<SplashGate> {
   }
 
   Future<void> _check() async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 1500)); // Smooth splash duration
     if (!mounted) return;
 
     final api = ApiService();
@@ -83,6 +84,7 @@ class _SplashGateState extends State<SplashGate> {
       PageRouteBuilder(
         pageBuilder: (_, a, __) => destination,
         transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+        transitionDuration: const Duration(milliseconds: 800),
       ),
     );
   }
@@ -90,22 +92,70 @@ class _SplashGateState extends State<SplashGate> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E293B);
+    
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(gradient: isDark 
           ? const LinearGradient(colors: [Color(0xFF0A0E21), Color(0xFF1A2040)], begin: Alignment.topCenter, end: Alignment.bottomCenter)
           : const LinearGradient(colors: [Color(0xFFF5F7FF), Color(0xFFE2E8F0)], begin: Alignment.topCenter, end: Alignment.bottomCenter)
         ),
-        child: Center(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.favorite, size: 60, color: Color(0xFF667EEA)),
-            const SizedBox(height: 20),
-            Text('AI Healthcare', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontSize: 24, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 20),
-            CircularProgressIndicator(color: Color(0xFF667EEA), strokeWidth: 2),
-          ]),
+        child: Stack(
+          children: [
+            Center(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Image.asset('assets/images/logo.png', width: 140, height: 140)
+                  .animate().fadeIn(duration: 600.ms).scale(begin: const Offset(0.8, 0.8), curve: Curves.easeOutBack),
+                const SizedBox(height: 30),
+                Text('AI Healthcare', style: TextStyle(color: textColor, fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: 1.5))
+                  .animate().fadeIn(delay: 200.ms).slideY(begin: 0.2),
+                const SizedBox(height: 40),
+                CircularProgressIndicator(color: const Color(0xFF667EEA), strokeWidth: 2, backgroundColor: const Color(0xFF667EEA).withAlpha(40))
+                  .animate().fadeIn(delay: 400.ms),
+              ]),
+            ),
+            Positioned(
+              bottom: 40,
+              left: 0,
+              right: 0,
+              child: Column(
+                children: [
+                  Text('Developed by', 
+                    style: TextStyle(color: textColor.withAlpha(150), fontSize: 13, fontWeight: FontWeight.w500, letterSpacing: 0.5)),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _devName('Nithya', '👩‍💻', textColor),
+                      _separator(textColor),
+                      _devName('Bharath', '👨‍💻', textColor),
+                      _separator(textColor),
+                      _devName('Tushar', '🚀', textColor),
+                    ],
+                  ),
+                ],
+              ).animate().fadeIn(delay: 800.ms).slideY(begin: 0.5),
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _devName(String name, String emoji, Color color) {
+    return Row(
+      children: [
+        Text(name, style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w600)),
+        const SizedBox(width: 4),
+        Text(emoji, style: const TextStyle(fontSize: 16)),
+      ],
+    );
+  }
+
+  Widget _separator(Color color) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Text('|', style: TextStyle(color: color.withAlpha(50), fontSize: 14)),
     );
   }
 }
